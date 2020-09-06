@@ -44,3 +44,9 @@ source("reg_suisse_EGPD_ratio.R")
 x <- echantillonnage(donnees=serie_temp,seuil=threshold) #sampling of data
 R.vect<-xi.Ratio(x) #vector of ratio for each station
 
+#extract positive precipitation ERA-5 switz
+positive_precip <- apply(X = precip_ERA5_CH, FUN = echantillonnage, MARGIN = c(1,2))
+
+R_CH <- apply(X=positive_precip, FUN = xi.Ratio, MARGIN = c(2,3))#c(2,3) because exchanges dimension
+
+image(R_CH)
