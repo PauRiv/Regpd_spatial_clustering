@@ -9,8 +9,8 @@ library(cluster) #PAM
 library(rgdal)#map (fun : readOGR)
 library(ggplot2)# graphes
 library(fpc)#pamk : silhouette criterion
-library(factoextra)#optimal number of cluster for kmeans algo
-library(JLutils)#best.cutree
+#library(factoextra)#optimal number of cluster for kmeans algo
+#library(JLutils)#best.cutree
 library(mev)#fit EGPD
 ######################
 # Sampling
