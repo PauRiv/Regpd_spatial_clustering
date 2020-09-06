@@ -35,3 +35,12 @@ times_ERA5 <- ncvar_get(nc = nc_precip_ERA5, varid = "time")
 date_ERA5 <- format(as.POSIXlt(times_ERA5*60*60, origin="1979-01-02 12:30:00"), format = "%Y-%m-%d")
 # Clsoe the ncdf once you've extract all you wanted
 nc_close(nc_precip_ERA5)
+############################
+## CLUSTERING ALGO
+# ESTIMATING PWM RATIO
+serie_temp = precip_ERA5_CH[1,1,]
+threshold = 1
+source("reg_suisse_EGPD_ratio.R")
+x <- echantillonnage(donnees=serie_temp,seuil=threshold) #sampling of data
+R.vect<-xi.Ratio(x) #vector of ratio for each station
+
