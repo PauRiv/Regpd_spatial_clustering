@@ -1,19 +1,19 @@
 #Always clean before doing anything 
 rm(list=ls(all=TRUE))
-source("~/Thèse/Codes/Suisse/reg_suisse_EGPD_ratio.R")
-source("~/Thèse/Codes/ClusterMax/R/PAMfmado.R.R")
+source("reg_suisse_EGPD_ratio.R")
+source("PAMfmado.R.R")
 ##################################################################
 ### Chargement des donnees (precipitations et coordonnees)
 ##################################################################
 #bassin 
-load("~/Thèse/Codes/Suisse/MetadataPrec_SEL.RData")#coord,nb_an_obs,nom_stations
+load("~/Th?se/Codes/Suisse/MetadataPrec_SEL.RData")#coord,nb_an_obs,nom_stations
 #switzerland
-load("~/Thèse/Codes/Suisse/matricePluieTriee.RData")# precip data for 191 stations, 85years
-load("~/Thèse/Codes/Suisse/TableauCoordTrie.RData")#tableau coord 
-load("~/Thèse/Codes/Suisse/StationsSummerParEGPD.RData")#at site parameters
-load("~/Thèse/Codes/Suisse/StationsWinterParEGPD.RData")#at site parameters
-load("~/Thèse/Codes/Suisse/StationsFallParEGPD.RData")#at site parameters
-load("~/Thèse/Codes/Suisse/StationsSpringParEGPD.RData")#at site parameters
+load("~/Th?se/Codes/Suisse/matricePluieTriee.RData")# precip data for 191 stations, 85years
+load("~/Th?se/Codes/Suisse/TableauCoordTrie.RData")#tableau coord 
+load("~/Th?se/Codes/Suisse/StationsSummerParEGPD.RData")#at site parameters
+load("~/Th?se/Codes/Suisse/StationsWinterParEGPD.RData")#at site parameters
+load("~/Th?se/Codes/Suisse/StationsFallParEGPD.RData")#at site parameters
+load("~/Th?se/Codes/Suisse/StationsSpringParEGPD.RData")#at site parameters
 
 ###################################################
 # Parametres : methode classif
@@ -120,9 +120,9 @@ row.names(tableau.coord.trie)<-names(R.vect)
 ## Mapping of clustered stations
 ########################################################
 #tableau.coord=data.frame(x=MetadataPrec[,5],y=MetadataPrec[,6])#coord of stations
-Bassin<-readOGR("~/Thèse/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() in sf package
+Bassin<-readOGR("~/Th?se/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() in sf package
 
-Swizerland<-readOGR("~/Thèse/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
+Swizerland<-readOGR("~/Th?se/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
 
 
 #x11()
@@ -179,11 +179,11 @@ parameter_clust26=fit.extgp(data=na.omit(mat_pluie_norm[,(classif=2)&(sub_classi
 #######################################################
 
 #parameter_point_winter=apply(X=na.omit(Fint), MARGIN =2, FUN = fit.extgp,method="pwm", init=c(0,0,0), model=1)#margin=2 ie applied to columns
-#save(parameter_point_summer,file='~/Thèse/Codes/Suisse/ParametresStationEGPD_ete.RData')
+#save(parameter_point_summer,file='~/Th?se/Codes/Suisse/ParametresStationEGPD_ete.RData')
 
 season="all"
-Bassin<-readOGR("~/Thèse/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() dans le package sf
-Swizerland<-readOGR("~/Thèse/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
+Bassin<-readOGR("~/Th?se/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() dans le package sf
+Swizerland<-readOGR("~/Th?se/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
 
 #plot(Swizerland, main="At-site xi parameter")
 #plot(Bassin,add=TRUE)#Basin
@@ -239,8 +239,8 @@ x<-return_stat[,6]
 col.x<-seq(from=min(x)-.0001,to=max(x), length.out = T+1)
 
 
-Bassin<-readOGR("~/Thèse/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() in sf package
-Swizerland<-readOGR("~/Thèse/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
+Bassin<-readOGR("~/Th?se/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() in sf package
+Swizerland<-readOGR("~/Th?se/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
 
 plot(Swizerland, main="At-site 30-years return levels")
 plot(Bassin,add=TRUE)#Bassin d'etude
@@ -255,8 +255,8 @@ legend(x="left",legend=round(col.x[-1],2), text.col=colorT)
 
 #unclustered ratio on a map
 
-Bassin<-readOGR("~/Thèse/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() in sf package
-Swizerland<-readOGR("~/Thèse/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
+Bassin<-readOGR("~/Th?se/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() in sf package
+Swizerland<-readOGR("~/Th?se/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
 
 plot(Swizerland, main="At-site xi parameter")
 plot(Bassin,add=TRUE)#Basin
@@ -328,11 +328,11 @@ REGPD_Vobs<-V_obs
 
 
 
-#save(REGPD_Dcrit,file = '~/Thèse/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_critical_measure.RData')
-#save(REGPD_H_values,file = '~/Thèse/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_statistic_H.RData')
-#save(REGPD_mu_V,file = '~/Thèse/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_theo_mean_V.RData')
-#save(REGPD_sd_V,file = '~/Thèse/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_theo_sd_V.RData')
-#save(REGPD_Vobs,file = '~/Thèse/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_empirical_V.RData')
+#save(REGPD_Dcrit,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_critical_measure.RData')
+#save(REGPD_H_values,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_statistic_H.RData')
+#save(REGPD_mu_V,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_theo_mean_V.RData')
+#save(REGPD_sd_V,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_theo_sd_V.RData')
+#save(REGPD_Vobs,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_empirical_V.RData')
 
 ####################################################################################
 ## END
@@ -393,9 +393,9 @@ if(clusterNo==2){
 tableau.coord.plus<-data.frame(cbind(tableau.coord.trie,R.vect,classif))
 ###End sub-clustering
 #plotting sub-regions
-Bassin<-readOGR("~/Thèse/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() dans le package sf
+Bassin<-readOGR("~/Th?se/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() dans le package sf
 
-Swizerland<-readOGR("~/Thèse/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
+Swizerland<-readOGR("~/Th?se/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
 
 
 #sub-reg one
