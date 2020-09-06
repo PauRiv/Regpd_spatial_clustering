@@ -22,7 +22,7 @@ library(lubridate) # For easier date manipulations
 folder_data <- "C:/Users/admin/Documents/Regpd_spatial_clustering_LOCAL/"
 
 #Location on Philomène's Laptop
-folder_data <- ""
+folder_data <- "~/Thèse/Collaboration_Pauline/data/"
 
 # use the function nc_open() to open a netcdf file
 nc_precip_ERA5 = nc_open(filename = paste0(folder_data, "era5_daily_precip_1979-01-02_2018-12-31_CH.nc"))
