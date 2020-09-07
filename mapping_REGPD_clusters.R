@@ -1,94 +1,110 @@
+#################### MAPPING CLUSTERS OF STATIONS OBTAINED BY PWM RATIO PAM CLUSTERING (margins) AND PAMfmado (dependence) #############
+############################                     LAST MODIFICATION: 04/09/2020              #################
 #Always clean before doing anything 
 rm(list=ls(all=TRUE))
-source("reg_suisse_EGPD_ratio.R")
-source("PAMfmado.R.R")
+source("RFA_function.R")#functions for RFA clustering, see Le Gall et al., 2020
+source("PAMfmado.R.R")# function for F-madogram clustering, see Bador et al., 2015
+library(fpc)#pamk, silhouette criterion
+# PLOT PACKAGES
+#library(rgdal)#map (fun : readOGR)
+#library(RColorBrewer)#map colors
+#library(rworldmap)
+#library(raster)#relief map
+#library(dplyr)#colors for clusters
 ##################################################################
-### Chargement des donnees (precipitations et coordonnees)
+### LOAD DATA (PRECIPITATION AND COORDINATES OF SITES)
 ##################################################################
-#bassin 
-load("~/Th?se/Codes/Suisse/MetadataPrec_SEL.RData")#coord,nb_an_obs,nom_stations
 #switzerland
-load("~/Th?se/Codes/Suisse/matricePluieTriee.RData")# precip data for 191 stations, 85years
-load("~/Th?se/Codes/Suisse/TableauCoordTrie.RData")#tableau coord 
-load("~/Th?se/Codes/Suisse/StationsSummerParEGPD.RData")#at site parameters
-load("~/Th?se/Codes/Suisse/StationsWinterParEGPD.RData")#at site parameters
-load("~/Th?se/Codes/Suisse/StationsFallParEGPD.RData")#at site parameters
-load("~/Th?se/Codes/Suisse/StationsSpringParEGPD.RData")#at site parameters
+#load("~/Thèse/Codes/Suisse/RFA_REGPD/matricePluieTriee.RData")# precip data for 191 stations, 85years
+#load("~/Thèse/Codes/Suisse/RFA_REGPD/TableauCoordTrie.RData")#coordinates
 
 ###################################################
-# Parametres : methode classif
+# PARAMETERS FOR CLUSTERING
 ###################################################
-seuil_precip<-1#only wet days
-mode_classif<-"pam" # "cah" # or "kmeans" # or "PAMfmado"
-saison<-"toutes" #"ete" "printemps" "automne" "hiver" "toutes"
-ratio<-"classic"#"alternative" or "classic"
+thres_precip <- 1#only wet days
+clustering_method<-"pam"  #"pam" # "cah" # ou "kmeans" # or "PAMfmado"
+season <- "all"
+ratio <-"classic"# "classic" for moments of order 0 to 2 or "alternative" for higher moments
+independence=FALSE#if TRUE, F(X) is estimated by (i/n)
 ###############################################################
-### Extracting data
+### EXTRACTING DATA
 ###############################################################
-#Fint <- matrixPrec_SEL#basin
-#Fint <- matrixPrec#switzerland tot, whole year
-Fint<-matricePluieTriee
-nb_stat<-dim(Fint)[2]
+#Matrix of observation, each row corresponds to a day and each column to a site
+Fint <- matricePluieTriee 
+nb_stat<-ncol(Fint)
+nday <- nrow(Fint)
+# Coordinates table, dataframe with 2 column (x and y coordinates), row names = codes/names of stations
+coord_table <- tableau.coord.trie
 
+#EXTRACT SEASONAL PRECIPITATION
+## METS PEUT ETRE TA FONCTION DE SEUILLAGE ET D'EXTRACTION SELON LES SAISONS ICI
 vec_date = as.Date(row.names(Fint))
 vec_month = format(vec_date,"%m")
+if(season=="summer"){
+  Fint<-Fint[vec_month%in%c("06","07","08"),]
+}
+if(season=="fall"){
+  Fint<-Fint[vec_month%in%c("09","10","11"),]
+}
+if(season=="winter"){
+  Fint<-Fint[vec_month%in%c("12","01","02"),]
+}
+if(season=="spring"){
+  Fint<-Fint[vec_month%in%c("03","04","05"),]
+}
+vec_date_season = as.Date(row.names(Fint))
+vec_year=format(vec_date_season,"%y")
 
-if(saison=="ete"){
-  season="summer"
-  Fint<-matricePluieTriee[vec_month%in%c("06","07","08"),]
-}
-if(saison=="automne"){
-  season="fall"
-  Fint<-matricePluieTriee[vec_month%in%c("09","10","11"),]
-}
-if(saison=="hiver"){
-  season="winter"
-  Fint<-matricePluieTriee[vec_month%in%c("12","01","02"),]
-}
-if(saison=="printemps"){
-  season="spring"
-  Fint<-matricePluieTriee[vec_month%in%c("03","04","05"),]
-}
-if(saison=="toutes"){
-  season="all"
-  Fint<-matricePluieTriee
+
+if(clustering_method=="PAMfmado"){
+  #extract annual maxima
+  A<-matrix(data=NA,nrow=length(unique(vec_year)),ncol = nb_stat)
+  tm_NA<- list()
+  for (j in 1:nb_stat) {
+    for (i in 1:length(unique(vec_year))) {
+      NoYear<-unique(vec_year)[i]
+      A[i,j]<-max(Fint[vec_year==NoYear,j],na.rm=TRUE)
+    }
+    #indices of station with year(s) without any max
+    if(sum(is.infinite(A[,j]))>0){tm_NA=c(tm_NA,j)}
+  }
+  
+  #tm_NA <- unlist(tm_NA,use.names = FALSE)
+  #Fint <- A[,-tm_NA]
+  #coord_table <- coord_table[-tm_NA,]
 }
 
-#tableau.coord=data.frame(x=MetadataPrec[,5],y=MetadataPrec[,6])#coord of stations
-nday <- nrow(Fint)
-nb_stat<-dim(Fint)[2]#=nombre stations
-nb_wet_days_a_year<-mean(apply(Fint>1, FUN =sum, MARGIN = 2 ),na.rm=TRUE)/(nday/365.25)
-nb_wet_days_summer<-mean(apply(Fint>1, FUN =sum, MARGIN = 2 ),na.rm=TRUE)/(nday/92)
-nb_wet_days_fall<-mean(apply(Fint>1, FUN =sum, MARGIN = 2 ),na.rm=TRUE)/(nday/91)
+#nb_wet_days_a_year<-mean(apply(Fint>thres_precip, FUN =sum, MARGIN = 2 ),na.rm=TRUE)/(nday/365.25)
+#nb_wet_days_summer<-mean(apply(Fint>thres_precip, FUN =sum, MARGIN = 2 ),na.rm=TRUE)/(nday/92)
+#nb_wet_days_fall<-mean(apply(Fint>thres_precip, FUN =sum, MARGIN = 2 ),na.rm=TRUE)/(nday/91)
+
 #############################################################
-#Sampling : x = mat of precip. a row = a day, a col=a station [useless if EGPD]
-x<- echantillonnage(donnees=Fint,seuil=seuil_precip)-1 #sampling of data
-
+#SAMPLING: x = mat of precip. a row = a day, a col=a station 
+x<- sampling(data=Fint,thres=thres_precip) #sampling of data
+# ESTIMATING PWM RATIO 
 if(ratio=="classic"){
   R.vect<-R.vec(x) #vector of ratio for each station
 }else{R.vect<-R.vec.alt(x)}
 
 #############################################################
-## Optimal number of clusters 
+## OPTIMAL NUMBER OF CLUSTERS
 #############################################################
-if(mode_classif=="PAMfmado"){
-  nb_reg<-pamk(na.omit(as.vector(x)))$nc
+if(clustering_method=="PAMfmado"){
+  nb_reg<-pamk(as.vector(x))$nc
 }
-if(mode_classif=="pam"){
-  nb_reg<-pamk(na.omit(as.vector(R.vect)))$nc
-}#fin pam
-
-if(mode_classif=="cah"){
-  d.xi.mat<-outer(na.omit(as.vector(R.vect)),na.omit(as.vector(R.vect)),FUN=function(u,v){abs(u-v)})
+if(clustering_method=="pam"){
+  nb_reg<-pamk(as.vector(R.vect))$nc
+}#end pam
+if(clustering_method=="cah"){
+  d.xi.mat<-outer(as.vector(R.vect),as.vector(R.vect),FUN=function(u,v){abs(u-v)})
   d.xi.mat<-as.dist(d.xi.mat)
   hclustxi.out<-hclust(d.xi.mat)
-  #tracer inertie 
+  #plot inertia 
   inertie <- sort(hclustxi.out$height, decreasing = TRUE)
   plot(inertie[1:6], type = "s", xlab = "Nombre de classes", ylab = "Inertie")
   nb_reg<-best.cutree(hclustxi.out)#nb classe optimal en terme d'inertie
-}#fin cah
-
-if(mode_classif=="kmeans"){
+}#end cah
+if(clustering_method=="kmeans"){
   ratio_ss <- data.frame(cluster = seq(from = 1, to = 9, by = 1))
   for (k in 1:9) {
     km_model <- kmeans(na.omit(R.vect), k, nstart = 20)#code original = pas de na.omit
@@ -99,80 +115,175 @@ if(mode_classif=="kmeans"){
     geom_line() +
     geom_point()
   #If inertia not plotted, re-do ggplot
-  print("nb_reg ?")}# FIN Kmeans
+  print("nb_reg ?")}# END Kmeans
 
 #####################################################
-## Classif 
+## CLUSTERING
 #####################################################
-if(mode_classif=="PAMfmado"){
-  classif<-PAMfmado.R(x=Fint,K=3)#,max.min = seuil_precip)
-  classif<-classif$clustering
+if(clustering_method=="PAMfmado"){
+  classif<-PAMfmado.R(x=Fint,K=nb_reg)#,max.min = thres_precip)
+  clusters<-classif$clustering
 } else{
-  classif<-classific(na.omit(R.vect),mode_classif, nb_reg)#vector of clusters ofr meth_classif method
+  clusters<-classific(R.vect,clustering_method, nb_reg)#vector of clusters for meth_classif method
+  clusters_obj <- pam(R.vect,k=nb_reg)
+  }
+#nb_reg=2
+row.names(coord_table) <- names(R.vect)
+
+########################################################
+## MAP OF CLUSTERED STATIONS
+########################################################
+# WORLD MAP (WITH RELIEF)
+visu_clusters = function(clusters, loc, x, y, title, xlim = "auto", ylim = "auto", resuming = median,
+                         interest = 'LAT', silhouette = FALSE, kls = NULL, palette = "Set1",
+                         save = FALSE, path = NULL){
+  #' Visualisation of clustering on an European map
+  #'
+  #' @param clusters clustering object, as returned by PAM or kls_clusters_extremes or clusters_extremes
+  #' @param loc data frame containing the localisation of each object (at least two columns, one of latitudes and one of longitudes)
+  #' @param x name of the column containing the longitudes (for the x-axis)
+  #' @param y name of the column containing the latitudes (for the x-axis)
+  #' @param title title to be given to the plot
+  #' @param xlim x limits for the plot, if xlim = "auto" then there are automatically computed, otherwise should be of the form xlim = c(xmin, xmax)
+  #' @param ylim y limits for the plot, if ylim = "auto" then there are automatically computed, otherwise should be of the form ylim = c(ymin, ymax)
+  #' @param resuming function to be used to determining the ordering, with respect to the column "interest". If median, then the median of the "interest" of each cluster will be computed, and the colors will be assigned with respect to this.
+  #' @param interest variable to consider for the ordering of colors. See more details on "resuming"
+  #' @param silhouette wether to display the points with a size proportional to their silhouette width.
+  #' @param kls KLs between each points, should only be giiven if silhouette = TRUE.
+  #' @param palette which color palette to use (from RBrewer)
+  #' @param save wether to save the resulting plot or not.
+  #' @param path path of the file when you want to save it.
+  #'
+  #' @return plot of the clustering on an European map
+  if(silhouette){
+    if (sum(kls<0, na.rm = TRUE) >  0){
+      kls = kls-min(kls, na.rm=TRUE)
+    }
+    dist = stats::as.dist(kls)
+  }else{sizes = rep(1,length(clusters$clustering))}
   
+  if(length(class(clusters)) == 2){
+    unique_clustering = clusters
+    clusters = list()
+    clusters[[1]] = unique_clustering
+  }
+  
+  for(i in 1:length(clusters)){
+    
+    clusters_item = clusters[[i]]
+    
+    if(silhouette){
+      sil = cluster::silhouette(clusters_item, dist)
+      widths = sil[order(as.integer(names(sil[,3]))),3]
+      sizes = (0.85)*(widths+1)/2+0.15
+    }
+    
+    title_item = title[i]
+    if(!is.null(path)){
+      path_item = path[i]
+    }
+    
+    nb_clusters = length(clusters_item$medoids)
+    list_colors = RColorBrewer::brewer.pal(n = nb_clusters, name = palette)
+    
+    clustered_loc = loc
+    clustered_loc$clustering = clusters_item$clustering
+    clustered_loc$var = loc[,interest]
+    
+    summary_by_cluster <- clustered_loc %>%
+      group_by(clustering) %>%
+      dplyr::summarize(position = resuming(var))
+    spatial_order_clusters = summary_by_cluster[,"clustering"]
+    temp = seq(1,nb_clusters)
+    order = order(summary_by_cluster$position)
+    ordering = rep(1,nb_clusters)
+    ordering[order] = temp
+    spatial_order_clusters$order = ordering
+    clustered_loc = left_join(clustered_loc, spatial_order_clusters)
+    list_colors = c("red", "black")#for visible sites in 2 clusters
+    colors =list_colors[clustered_loc$order]
+    
+    reliefData <- stack("~/Th?se/Codes/Suisse/Mapping/HYP_HR_SR_OB_DR.tif")
+    newext <- c(-10, 25, 40, 53)
+    reliefData.c <- crop(reliefData, newext)
+    
+    newmap = rworldmap::getMap(resolution = "low")
+    sp::plot(newmap, xlim = c(6, 11), ylim = c(45, 48), asp = 1, main=title_item)
+    plotRGB(reliefData.c, add=TRUE)
+    sp::plot(newmap, xlim = c(6, 11), ylim = c(45, 48), add = TRUE)
+    graphics::points(loc[,x], loc[,y], pch=18, col=colors, cex=sizes)
+    graphics::points(loc[as.integer(clusters_item$medoids),x], loc[as.integer(clusters_item$medoids),y], pch=5)
+    if(silhouette){
+      avg_sil = summary(sil)$avg.width
+      #graphics::text(-5,51, paste("Average silhouette width:", round(avg_sil,4)),
+      #                 font = 2)
+      legend(6.1,48.2, legend=c("Average silhouette width:", round(avg_sil,4)), cex=0.8)
+    }
+    if (save){
+      grDevices::dev.copy(png,path_item,width=1200,height=800,res=150)
+      grDevices::dev.off()
+    }
+  }
 }
+visu_clusters(clusters_obj, MetaDataTriee[,], 'longitude', 'latitude', NULL,
+              interest = "latitude", silhouette = FALSE, kls = kls)#, save = TRUE, path = path)
 
-row.names(tableau.coord.trie)<-names(R.vect)
-
-
-
-########################################################
-## Mapping of clustered stations
-########################################################
-#tableau.coord=data.frame(x=MetadataPrec[,5],y=MetadataPrec[,6])#coord of stations
+# LOCAL MAP (NO RELIEF)
+coord_table$clustering = clusters
+## ALWAYS THE SAME ORDER FOR COLORS
+summary_by_cluster <- coord_table %>%
+  group_by(clustering) %>%
+  dplyr::summarize(position = median(y))
+spatial_order_clusters = summary_by_cluster[,"clustering"]#contient la liste des No des clusters
+temp = seq(1,nb_reg)
+order = order(summary_by_cluster$position)
+ordering = rep(1,nb_reg)
+ordering[order] = temp#ordre des clusters selon les coordonn?es des pts des medoides
+spatial_order_clusters$order = ordering #on ajoute la colone des num?ros de clusters
+coord_table = left_join(coord_table, spatial_order_clusters) #concatener avec le tableau des metadata
 Bassin<-readOGR("~/Th?se/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() in sf package
-
 Swizerland<-readOGR("~/Th?se/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
 
+palette="Set1"
+list_colors = brewer.pal(n = nb_reg, name = palette)
+#list_colors = c("#377EB8","#E41A1C")
 
 #x11()
-plot(Swizerland,main=paste("Season= ", season, ", clustering=", mode_classif,", ratio=", ratio ))#,saison))#Switzerland
-plot(Bassin,add=TRUE)#Basin 
-points(tableau.coord.trie, col = classif,pch=16,cex=1.2)#clustered stations 
-legend(x="topright", legend=unique(classif), col=unique(classif), pch=16,bg="white",bty="n")
+plot(Swizerland)#,main=paste("Season = ", season, ", clustering =", clustering_method,", ratio =", ratio ))#))#Switzerland
+plot(Bassin, add=TRUE)
+#plotRGB(reliefData,add=TRUE)#Basin 
+#avec longitude et latitude
+points(coord_table, col = list_colors[clusters],pch=18,cex=1.2)#clustered stations 
+legend(x="topright", legend=unique(clusters), col=unique(list_colors[clusters]), pch=18,bg="white",bty="n")
+#########################################
+##     END CLUSTERING
+#########################################
 
+#########################################
+##     INFERENCE AND HOMOGENEITY TESTS
+#########################################
 
-#normalisation of precip by their sigma (index-flood)
-vect_moy=apply(Fint, MARGIN = 2,FUN = mean,na.rm=TRUE)
-if(length(vect_moy)==nb_stat){
-  mat_moy=matrix(data=rep(vect_moy,nday),ncol=nb_stat,byrow=TRUE)#mat nb_days*nb_stat in (i,j)=mean of precip at station j
-  mat_pluie_norm=Fint/mat_moy #normalised (by at-site mean) rainfall intensities
-}
+#########################################################
+## REGIONAL ESTIMATION OF EGPD(kappa,sigma,xi) PARAMETERS
+#########################################################
+# Precipitation in each two clusters
+MatPluieClust1<-x[,clusters==1]
+MatPluieClust2<-x[,clusters==2]
 
+#save(MatPluieClust2,file="~/Th?se/Codes/Suisse/precip_cluster2.RData")
 
 #regional estimation of shape parameters kappa and xi
-parameter_clust1=fit.extgp(data=na.omit(mat_pluie_norm[,classif=1]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
+#parameter_clust1=fit.extgp(data=na.omit(mat_pluie_norm[,clusters=1]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
 #parameter_clust1=fit.extgp(data=na.omit(Fint[,classif=1]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
 
 #kappa       sigma          xi (normalised)
 #0.612240515 2.791833664 0.002161607 
 
-parameter_clust2=fit.extgp(data=na.omit(mat_pluie_norm[,classif=2]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
+#parameter_clust2=fit.extgp(data=na.omit(mat_pluie_norm[,clusters=2]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
 #parameter_clust2=fit.extgp(data=na.omit(Fint[,classif=2]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
 
 #kappa      sigma         xi (normalised) 
 #0.7382127 2.4648298  0.2557899 
-
-#estim for sub-region1 of cluster 2
-parameter_clust21=fit.extgp(data=na.omit(mat_pluie_norm[,(classif=2)&(sub_classif2=3)]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
-#estimation station by station of kappa and xi
-
-#estim for sub-region2 of cluster 2
-parameter_clust22=fit.extgp(data=na.omit(mat_pluie_norm[,(classif=2)&(sub_classif2=4)]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
-
-#estim for sub-region2 of cluster 3
-parameter_clust23=fit.extgp(data=na.omit(mat_pluie_norm[,(classif=2)&(sub_classif2=5)]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
-
-#estim for sub-region2 of cluster 4
-parameter_clust24=fit.extgp(data=na.omit(mat_pluie_norm[,(classif=2)&(sub_classif2=6)]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
-
-#estim for sub-region2 of cluster 5
-parameter_clust25=fit.extgp(data=na.omit(mat_pluie_norm[,(classif=2)&(sub_classif2=7)]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
-
-#estim for sub-region2 of cluster 6
-parameter_clust26=fit.extgp(data=na.omit(mat_pluie_norm[,(classif=2)&(sub_classif2=8)]),method="pwm",init=c(0,0,0), model=1)#model=1 ie Gu)=u^\kappa
-
-
 
 #######################################################
 #at-site parameters on a map
@@ -287,8 +398,8 @@ legend(x="topright",legend=round(col.z[-1],2), text.col=colorK)
 ### To be deleted ; homogeneity tests on clusters
 ###########################################################################
 library(lmomRFA)
-atsite.lmoment<-data.frame(regsamlmu(Fint),classif)
-atsite.lmom<-regsamlmu(Fint)
+atsite.lmoment<-data.frame(regsamlmu(x),classif)
+atsite.lmom<-regsamlmu(x)
 
 H_values<-matrix(NA,nrow=nb_reg,ncol = 3)
 V_obs<-H_values#for three statistical tests (cf Hosking&Wallis 2005)
@@ -308,109 +419,27 @@ for (NbCluster in 1:nb_reg) {
   Disc_measure<-test_info_reg$D
   H_values[NbCluster,]<-statistics
   V_obs[NbCluster,]<-Vobs
-  mu_V<-mean_sim
-  sd_V<-sd_sim
+  mu_V[NbCluster,]<-mean_sim
+  sd_V[NbCluster,]<-sd_sim
   Dcrit[NbCluster,]<-Dcritical
   D[[NbCluster]]<-Disc_measure
   
 }
 ind_disc_stat<- c(which(D[[1]]>3),which(D[[2]]>3))#stations with discordancy measures above the 5% confidence level
 
-points(tableau.coord.trie[ind_disc_stat,], col = 3, pch=16,cex=1.2) #discordant stations
+points(coord_table[ind_disc_stat,], col = 3, pch=16,cex=1.2) #discordant stations
 
-legend(x="topright", legend=c(unique(classif),"disc"), col=c(unique(classif),3), pch=16,bg="white",bty="n")
+legend(x="topright", legend=c(unique(clusters),"disc"), col=c(unique(clusters),3), pch=16,bg="white",bty="n")
 REGPD_Dcrit<-Dcrit
 REGPD_D<-D
 REGPD_H_values<-H_values
 REGPD_mu_V<-mu_V
 REGPD_sd_V<-sd_V
 REGPD_Vobs<-V_obs
+REGPD_test_info_reg<-test_info_reg
 
-
-
-#save(REGPD_Dcrit,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_critical_measure.RData')
-#save(REGPD_H_values,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_statistic_H.RData')
-#save(REGPD_mu_V,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_theo_mean_V.RData')
-#save(REGPD_sd_V,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_theo_sd_V.RData')
-#save(REGPD_Vobs,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_empirical_V.RData')
+#save(REGPD_test_info_reg,file = '~/Th?se/Codes/Suisse/RFA_Hos05/REGPD_hos05/REGPD_homo_test.RData')
 
 ####################################################################################
 ## END
 ####################################################################################
-######
-# Sub clustering (USELESS)
-###############################"
-# first : pam
-
-# optimal number of clusters
-clusterNo<-2
-if(mode_classif=="PAMfmado"){
-  nb_sub_reg<-pamk(na.omit(R.vect[classif==clusterNo]))$nc
-}
-if(mode_classif=="pam"){
-  nb_sub_reg<-pamk(na.omit(R.vect[classif==clusterNo]))$nc
-}#fin pam
-
-if(mode_classif=="cah"){
-  d.xi.mat<-outer(na.omit(R.vect[classif==clusterNo]),na.omit(R.vect[classif==clusterNo]),FUN=function(u,v){abs(u-v)})
-  d.xi.mat<-as.dist(d.xi.mat)
-  hclustxi.out<-hclust(d.xi.mat)
-  #tracer inertie 
-  inertie <- sort(hclustxi.out$height, decreasing = TRUE)
-  plot(inertie[1:6], type = "s", xlab = "Nombre de classes", ylab = "Inertie")
-  nb_sub_reg<-best.cutree(hclustxi.out)#nb classe optimal en terme d'inertie
-}#fin cah
-
-if(mode_classif=="kmeans"){
-  ratio_ss <- data.frame(cluster = seq(from = 1, to = 9, by = 1))
-  for (k in 1:9) {
-    km_model <- kmeans(na.omit(R.vect[classif==clusterNo]), k, nstart = 20)#code original = pas de na.omit
-    ratio_ss$ratio[k] <- km_model$tot.withinss / km_model$totss #inertie intraclasse normalisee
-  }
-  
-  ggplot(ratio_ss, aes(cluster, ratio)) +
-    geom_line() +
-    geom_point()
-  #Si pas de plot de l'inertie, refaire tourner le ggplot
-  print("nb_sub_reg ?")}# FIN Kmeans
-
-#####################################################
-## sub-clustering (USELESS)
-#####################################################
-if(mode_classif=="PAMfmado"){
-  sub_classif<-PAMfmado.R(x=Fint,K=3)#,max.min = seuil_precip)
-  sub_classif<-classif$clustering
-} else{
-  sub_classif<-classific(na.omit(R.vect[classif==clusterNo]),mode_classif, nb_sub_reg)#creation des classes de R.vect pour nb_reg regions et pour la methode mode_classif
-  
-}
-if(clusterNo==1){
-  sub_classif1<-sub_classif
-}
-if(clusterNo==2){
-  sub_classif2<-sub_classif+2
-}
-tableau.coord.plus<-data.frame(cbind(tableau.coord.trie,R.vect,classif))
-###End sub-clustering
-#plotting sub-regions
-Bassin<-readOGR("~/Th?se/Codes/Suisse/BASIN1_CH1903_LV03.shp") #st_read() dans le package sf
-
-Swizerland<-readOGR("~/Th?se/Codes/Suisse/CHE_adm0_CH1903_LV03.shp")
-
-
-#sub-reg one
-plot(Swizerland,main=paste("Season= ", season, ", clustering=", mode_classif,", ratio=", ratio ))#,saison))#Suisse
-plot(Bassin,add=TRUE)#Bassin d'etude
-points(tableau.coord.trie[classif==1,], col = 1,pch=16,cex=1.2)#stations classees
-points(tableau.coord.trie[classif==2,], col = sub_classif2+3,pch=16,cex=1.2)#stations classees
-legend(x="topright", legend=unique(sub_classif1+2), col=unique(sub_classif1+2), pch=16,bg="white",bty="n")
-
-#sub_reg 2
-
-plot(Swizerland,main=paste("Season= ", season, ", clustering=", mode_classif,", ratio=", ratio ))#,saison))#Suisse
-plot(Bassin,add=TRUE)#Bassin d'etude
-points(tableau.coord.trie[classif==2,], col = sub_classif2+3,pch=16,cex=1.2)#stations classees
-legend(x="topright", legend=unique(sub_classif2+2), col=unique(sub_classif2+3), pch=16,bg="white",bty="n")
-
-
-    
