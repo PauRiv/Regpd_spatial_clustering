@@ -14,8 +14,11 @@ set.seed(2020)
 
 library(ncdf4) # To handle NetCDF files
 library(lubridate) # For easier date manipulations
-
-
+library(fpc)#pamk, silhouette criterion
+library(cluster)# PAM
+######### Functions for clustering ######
+source("RFA_function.R")#RFA clustering, see Le Gall et al., 2020
+source("PAMfmado.R.R")# F-madogram clustering, see Bador et al., 2015
 
 ######### Open the netCDF file ##########
 # Location on Pauline's Laptop:
@@ -40,13 +43,18 @@ nc_close(nc_precip_ERA5)
 # ESTIMATING PWM RATIO
 serie_temp = precip_ERA5_CH[1,1,]
 threshold = 1
-source("reg_suisse_EGPD_ratio.R")
-x <- echantillonnage(donnees=serie_temp,seuil=threshold) #sampling of data
+
+x <- sampling(data=serie_temp,thres=threshold) #sampling of data
 R.vect<-xi.Ratio(x) #vector of ratio for each station
 
 #extract positive precipitation ERA-5 switz
-positive_precip <- apply(X = precip_ERA5_CH, FUN = echantillonnage, MARGIN = c(1,2))
-
+positive_precip <- apply(X = precip_ERA5_CH, FUN = sampling, MARGIN = c(1,2))
+#compute PWM ratio on positive precipitation
 R_CH <- apply(X=positive_precip, FUN = xi.Ratio, MARGIN = c(2,3))#c(2,3) because exchanges dimension
 
 image(R_CH)
+
+# CLUSTER ESTIMATED VALUES OF RATIO
+spatial_clusters = clustering_algo(data=R_CH,clustering_method="pam")#clustering_method="PAMfmado" for clustering on spatial dependence only
+image(matrix(spatial_clusters$pamobject$clustering, nrow=23))
+
