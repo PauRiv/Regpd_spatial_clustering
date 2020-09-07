@@ -62,37 +62,48 @@ R.vec<-function(X){
 }
 
 #CLUSTERING FUNCTION
-classific<-function(X,clustering_method, nb_clusters){
+clustering_algo<-function(data,clustering_method, nb_clusters=NULL){
   # ARGUMENTS
-  #   X, vector of points to cluster
+  #   data, vector of points to cluster
   #   clustering_method, method used for clustering : "pam", "cah" or "kmeans"
   #   nb_clusters, final number of clusters
-  if(clustering_method=="cah"){
-    ###   distance by pairs of X
-    #function(u,v){abs(u-v)}) on R.vect vector of ratio values site to site
-    d.R.mat<-dist(X)
-    
-    ###   Hierarchical Clustering
-    hclust.out<-hclust(d.R.mat)
-    classes = cutree(hclust.out, k=nb_clusters) 
-    # OR : number of clusters depending on the criterion
-    
-  }  #CAH
   
+  # if(clustering_method=="cah"){
+  #   ###   distance by pairs of X
+  #   #function(u,v){abs(u-v)}) on R.vect vector of ratio values site to site
+  #   d.R.mat<-dist(data)
+  #   
+  #   ###   Hierarchical Clustering
+  #   hclust.out<-hclust(d.R.mat)
+  #   classes = cutree(hclust.out, k=nb_clusters) 
+  #   # OR : number of clusters depending on the criterion
+  #   
+  # }  #CAH
+  # 
   
-  if(clustering_method=="kmeans"){
-    
-    ### initialisation and clustering
-    init.centers <- quantile(X, probs=seq(0,1,length=nb_clusters))
-    clustz <- kmeans(X,centers=init.centers,iter.max=20)
-    classes <- clustz$cluster}#kmeans
+  # if(clustering_method=="kmeans"){
+  #   
+  #   ### initialisation and clustering
+  #   init.centers <- quantile(data, probs=seq(0,1,length=nb_clusters))
+  #   clustz <- kmeans(data,centers=init.centers,iter.max=20)
+  #   classes <- clustz$cluster}#kmeans
   
   if(clustering_method=="pam"){
-    classes <- pam(X,nb_clusters,cluster.only = TRUE)}#pam
+    clusters_info <- pamk(as.vector(data))
+   
+    #classes <- clusters_info$pam}
+    if(length(nb_clusters)!=0){classes <- pam(as.vector(data),nb_clusters,cluster.only = TRUE)}}#pam
+  if(clustering_method=="PAMfmado"){
+    #extract max
+    #precip_max <-
+    classif<-PAMfmado.R(x=precip_max,K=nb_clusters)#,max.min = thres_precip)
+    clusters<-classif$clustering
+  }
   
   
-  
-  return(classes)}#classif
+  return(clusters_info)
+  #return(classes)
+  }#classif
 
 
 ################################
@@ -129,7 +140,7 @@ simulKAPPA<-function(xi, sigma,mu=0,flex=1/10,n=100){
   # Values
   #   rKAPPA matrix with n rows and n.x*n.y (number of "stations") col.
   #   A row = a day; a col=a col= a KAPPA(xi,sigma,mu,flex) sample
-  #    de parametres xi et sigma =1, mu et flexibilité
+  #    de parametres xi et sigma =1, mu et flexibilit?
   
   m<-length(xi)
   if(length(sigma)!=m) stop("xi and sigma with different dimensions")
