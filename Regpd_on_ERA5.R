@@ -18,9 +18,9 @@ library(fpc)#pamk, silhouette criterion
 library(cluster)# PAM
 ##
 #PACKAGES FOR PLOT
-library(rworldmap)
-library(raster)#relief map
-library(dplyr)#colors for clusters
+# library(rworldmap)
+# library(raster)#relief map
+# library(dplyr)#colors for clusters
 ######### Functions for clustering ######
 source("RFA_function.R")#RFA clustering, see Le Gall et al., 2020
 source("PAMfmado.R.R")# F-madogram clustering, see Bador et al., 2015
@@ -75,3 +75,12 @@ image(matrix(spatial_clusters$pamobject$clustering, nrow=23))
 # plotRGB(reliefData.c, add=TRUE)
 # sp::plot(newmap, xlim = c(6, 11), ylim = c(45, 48), add = TRUE)
 # graphics::points(loc[,x], loc[,y], pch=18, col=colors, cex=sizes)
+
+
+# Matrix with NAs:
+R_with_NA <- matrix(c(NA, 1.669390, 1.665978 ,1.659580,
+                      NA ,1.672934 ,1.700153 ,NA,
+                      NA , NA , 1.731162, 1.711460), nrow = 4)
+image(R_with_NA)
+cluster_with_NA <- clustering_algo(data=R_with_NA,
+                                   clustering_method="pam")
