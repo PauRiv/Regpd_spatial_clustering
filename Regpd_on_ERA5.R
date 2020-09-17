@@ -64,6 +64,7 @@ image(R_CH)
 spatial_clusters = clustering_algo(data=R_CH,clustering_method="pam")#later: clustering_method="PAMfmado" for clustering on spatial dependence only
 image(matrix(spatial_clusters$pamobject$clustering, nrow=23))
 
+
 # PLOT CLUSTERED SITES ON A MAP
 #PYTHON ?
 # reliefData <- stack("~/Thèse/Codes/Suisse/Mapping/HYP_HR_SR_OB_DR.tif")
@@ -84,3 +85,16 @@ R_with_NA <- matrix(c(NA, 1.669390, 1.665978 ,1.659580,
 image(R_with_NA)
 cluster_with_NA <- clustering_algo(data=R_with_NA,
                                    clustering_method="pam")
+# PAM LOOP FOR SEVERAL NUMBER OF CLUSTERS
+# list of pam objects (clustering vector, silhouette criteria, medoid centers)
+list_partition <- list()
+# number of clusters in the partition
+nb_clusters = c(2:5)
+sil_crit = rep(0, length(nb_clusters))
+for (i in 1:length(nb_clusters)) {
+  NbClusters = nb_clusters[i]
+  list_partition[[i]] = pam(R.vect,NbClusters)
+  sil_crit[i] = list_partition[[i]]$silinfo$avg.width
+}
+# plot silhouette criterion
+plot(1:max(nb_clusters),c(0,sil_crit), xlab = "Number of clusters", ylab= "Average silhouette width")#optimal silhouette criterion is argument of highest silhouette criterion
