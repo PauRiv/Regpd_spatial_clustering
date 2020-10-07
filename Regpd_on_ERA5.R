@@ -93,7 +93,7 @@ nb_clusters = c(2:5)
 sil_crit = rep(0, length(nb_clusters))
 for (i in 1:length(nb_clusters)) {
   NbClusters = nb_clusters[i]
-  list_partition[[i]] = pam(R.vect,NbClusters)
+  list_partition[[i]] = pam(R_CH,NbClusters)
   sil_crit[i] = list_partition[[i]]$silinfo$avg.width
 }
 # plot silhouette criterion
