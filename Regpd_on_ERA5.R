@@ -99,6 +99,11 @@ for (i in 1:length(nb_clusters)) {
 # plot silhouette criterion
 plot(1:max(nb_clusters),c(0,sil_crit), xlab = "Number of clusters", ylab= "Average silhouette width")#optimal silhouette criterion is argument of highest silhouette criterion
 
+## F-MADOGRAM CLUSTERING (see Bador et al., 2015, Bernard et al., 2013, Saunders, 2020)
+# M is the matrix of annual/seasonal/weekly maxima
+K=2 #3,4,5 # number of clusters
+Spatial_clustering_Fmad = PAMfmado.R(M,K) #vector of clusters, medoids...
+dep_clusters = Spatial_clustering_Fmad$clustering #vector of clusters
 
 ## REGIONAL INFERENCE
 

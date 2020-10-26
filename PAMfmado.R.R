@@ -1,6 +1,5 @@
 library(cluster)
-PAMfmado.R <-
-function(x,K,J=0,threshold=.99,max.min=0, distance="manhattan"){
+PAMfmado.R <-function(x,K,J=0,threshold=.99,max.min=0, distance="manhattan"){
   #
   # Description 
   #   This function performs the PAM algorithm based on the F-madogram distance
