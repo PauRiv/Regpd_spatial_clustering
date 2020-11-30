@@ -26,7 +26,7 @@ Fbar <- function(x,kappa,sigma,xi){
 
 fitEGPDkSemiRegCensoredIter <- function(M,method="pwm",cens_thres=c(0,Inf),round=0.1,
                                         ParReg = "mean", thres=0, precision=.0001,
-                                        ParInit=c(0.5,0.5,0.2), loop.max = 50){
+                                        ParInit=c(0.5,0.5,0.2), loop.max = 10){
   #   DESCRIPTION
   # Fit a (semi)regional version of EGPD in Naveau et al. (2016).
   #   ARGUMENTS
