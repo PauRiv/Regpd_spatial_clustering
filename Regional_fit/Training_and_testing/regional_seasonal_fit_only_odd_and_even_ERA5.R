@@ -7,7 +7,7 @@ rm(list=ls(all=TRUE))
 library(ncdf4) # To handle NetCDF files
 
 
-seas <- "SON"
+seas <- "JJA"
 print(seas)
 # if (seas=="JJA") {nclust <- 3; var_name="cluster_num_3"} else {nclust <- 2; var_name="cluster_num_2"}
 
@@ -89,24 +89,30 @@ for(clust_nb in 1:nclust){
   keep_lat <- numeric()
   
   counting <- 0
-  for (LON in (1:num_lon)[(1:num_lon)%%2==1]) {
-    for (LAT in (1:num_lat)[(1:num_lat)%%2==1]) {
-      if(!is.na(optimal_partition[LON,LAT]) & optimal_partition[LON,LAT]==clust_nb){
-        counting <- counting + 1
-        print(counting)
-        keep_lon[counting] <- LON ; keep_lat[counting] <- LAT
-        y <- extr_seas_pos_precip(precip_timeserie = precip_ERA5[LON,LAT,], season = seas, precip_date = date_ERA5, thshld = 0)
-        M_pos_precip <- rbind.fill.matrix(M_pos_precip, t(as.matrix(y)))
-      }#end if in cluster
-    }#end for LAT
-  }#end for LON : took 1h
-  rm(counting)
-  
-  List_keep_coord[[clust_nb]] <- list(keep_lon = keep_lon, keep_lat = keep_lat)
-  List_reg_fit[[clust_nb]] <- fitEGPDkSemiRegCensoredIter_paral(M = t(M_pos_precip),
-                                                                ncores = floor(detectCores()/3 - 1), cens_thres = c(1,Inf))
-  
+  for (LON in 1:num_lon) {
+    for (LAT in 1:num_lat) {
+      
+      if(LON%%2==LAT%%2) {
+        if(!is.na(optimal_partition[LON,LAT]) & optimal_partition[LON,LAT]==clust_nb){
+            counting <- counting + 1
+            print(counting)
+            keep_lon[counting] <- LON ; keep_lat[counting] <- LAT
+            y <- extr_seas_pos_precip(precip_timeserie = precip_ERA5[LON,LAT,], season = seas, precip_date = date_ERA5, thshld = 0)
+            ind_1_third <- (1:length(y))[which(((1:length(y))%%3)==0)]
+            M_pos_precip <- rbind.fill.matrix(M_pos_precip, t(as.matrix(y[ind_1_third])))
+          }#end if in cluster
+        
+        }#end if ODD or EVEN
+      }#end for LAT
+    }#end for LON : took 1h
+    rm(counting)
+    
+    List_keep_coord[[clust_nb]] <- list(keep_lon = keep_lon, keep_lat = keep_lat)
+    List_reg_fit[[clust_nb]] <- fitEGPDkSemiRegCensoredIter_paral(M = t(M_pos_precip),
+                                                                  ncores = floor(detectCores()/3 - 1), cens_thres = c(1,Inf))
+        
+      
 }#end for clust_nb
 
-save(List_reg_fit, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/res_reg_fit_only_odd_",seas,"V2.Rdata"))
-save(List_keep_coord, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/keep_coord_reg_fit_only_odd_",seas,"V2.Rdata"))
+save(List_reg_fit, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/res_reg_fit_only_even_OR_odd_",seas,"_1third.Rdata"))
+save(List_keep_coord, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/keep_coord_reg_fit_only_even_OR_odd_",seas,"_1third.Rdata"))
