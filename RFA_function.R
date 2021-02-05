@@ -1,5 +1,5 @@
 #################### FUNCTIONS FOR RFA : CLUSTERING ON PWM RATIO ######################
-##############################     LAST MODIFICATION 0è/09/2020            ##############################
+##############################     LAST MODIFICATION 0?/09/2020            ##############################
 
 ######################
 ## ESTIMATION
@@ -47,7 +47,7 @@ xi.Ratio <-function(x,independence=TRUE){
   a2 <- mean(weight^2*x)
   a3 <- mean(weight^3*x)
   
-  xi.R <-(3*a2-a0)/(2*a1-a0)
+  xi.R <-(3*a2-2*a1)/(2*a1-a0)
   #if(F) xi.R <- (1/xi.R)
   return(xi.R)
 }
