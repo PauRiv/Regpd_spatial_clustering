@@ -11,7 +11,7 @@
 rm(list = ls())
 source("/scratch3/pauline/ExtendedGeneralizedPareto/mixtureEGPfit_April2019.R")
 
-seas <- "SON"
+seas <- "DJF"
 # if(seas == "JJA"){print("/!\ 3 clusters in JJA")}
 
 
@@ -85,6 +85,123 @@ registerDoParallel(cores=floor(detectCores()/3))
 
 
 # AD test regional fit ------------------------------------------------
+#1/3rd data
+pval_test_ad_with_left <- list()
+
+for (clust in 1:length(List_keep_coord)) {
+  npoints <- length(List_reg_fit[[clust]]$Theta$xi.reg)
+  pval_test_ad_with_left[[clust]] <- numeric(length = npoints)
+  print(paste("cluster",clust))
+  
+  list_pval <- foreach(GP=1:npoints) %dopar% {
+    LON <- List_keep_coord[[clust]]$keep_lon[GP]
+    LAT <- List_keep_coord[[clust]]$keep_lat[GP]
+    
+    if(!is.na(sum(precip_ERA5[LON-1,LAT,]))){
+      seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON-1,LAT,],
+                                                precip_date = date_ERA5, thshld=1)
+    } else {
+      if(!is.na(sum(precip_ERA5[LON+1,LAT,]))){
+        seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON+1,LAT,],
+                                                  precip_date = date_ERA5, thshld=1)
+      } else {
+        if(!is.na(sum(precip_ERA5[LON,LAT-1,]))){
+          seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT-1,],
+                                                    precip_date = date_ERA5, thshld=1)
+        }else {
+          if(!is.na(sum(precip_ERA5[LON,LAT+1,]))){
+            seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT+1,],
+                                                      precip_date = date_ERA5, thshld=1)
+          } else {
+            seas_precip_local <- NA
+          }#end if else top
+        }#end if else bottom
+      }#end if else right
+    }#and if else left
+    
+    
+    if(!is.na(seas_precip_local)){
+      
+      pExtGP_conditional_gtu <- function(q,u=1,kappa,sigma,xi){
+        stopifnot(sum(q<=u)==0)
+        F_u <- pextgp(u, kappa = kappa, sigma = sigma, xi = xi)
+        p <- (pextgp(q, kappa = kappa, sigma = sigma, xi = xi)-F_u)/(1-F_u)
+        return(p)
+      }
+      
+      ADtest <- goftest::ad.test(x=seas_precip_local[which((1:length(seas_precip_local)%%3)==1)],
+                                 null = pExtGP_conditional_gtu, kappa = List_reg_fit[[clust]]$Theta$kappa[GP],
+                                 sigma = List_reg_fit[[clust]]$Theta$sigma[GP], xi = List_reg_fit[[clust]]$Theta$xi.reg[GP])
+      return(ADtest$p.value)
+    } else {
+      return(NA)
+    }
+  }#end foreach GP
+  pval_test_ad_with_left[[clust]] <- unlist(list_pval)
+}#end for clust
+
+save(pval_test_ad_with_left, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/Test_fitting/test_AD_leftGP_",
+                                           seas,"_1thirddata.Rdata"))
+
+#1/5th data
+pval_test_ad_with_left <- list()
+
+for (clust in 1:length(List_keep_coord)) {
+  npoints <- length(List_reg_fit[[clust]]$Theta$xi.reg)
+  pval_test_ad_with_left[[clust]] <- numeric(length = npoints)
+  print(paste("cluster",clust))
+  
+  list_pval <- foreach(GP=1:npoints) %dopar% {
+    LON <- List_keep_coord[[clust]]$keep_lon[GP]
+    LAT <- List_keep_coord[[clust]]$keep_lat[GP]
+    
+    if(!is.na(sum(precip_ERA5[LON-1,LAT,]))){
+      seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON-1,LAT,],
+                                                precip_date = date_ERA5, thshld=1)
+    } else {
+      if(!is.na(sum(precip_ERA5[LON+1,LAT,]))){
+        seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON+1,LAT,],
+                                                  precip_date = date_ERA5, thshld=1)
+      } else {
+        if(!is.na(sum(precip_ERA5[LON,LAT-1,]))){
+          seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT-1,],
+                                                    precip_date = date_ERA5, thshld=1)
+        }else {
+          if(!is.na(sum(precip_ERA5[LON,LAT+1,]))){
+            seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT+1,],
+                                                      precip_date = date_ERA5, thshld=1)
+          } else {
+            seas_precip_local <- NA
+          }#end if else top
+        }#end if else bottom
+      }#end if else right
+    }#and if else left
+    
+    
+    if(!is.na(seas_precip_local)){
+      
+      pExtGP_conditional_gtu <- function(q,u=1,kappa,sigma,xi){
+        stopifnot(sum(q<=u)==0)
+        F_u <- pextgp(u, kappa = kappa, sigma = sigma, xi = xi)
+        p <- (pextgp(q, kappa = kappa, sigma = sigma, xi = xi)-F_u)/(1-F_u)
+        return(p)
+      }
+      
+      ADtest <- goftest::ad.test(x=seas_precip_local[which((1:length(seas_precip_local)%%5)==1)],
+                                 null = pExtGP_conditional_gtu, kappa = List_reg_fit[[clust]]$Theta$kappa[GP], sigma = List_reg_fit[[clust]]$Theta$sigma[GP],
+                                 xi = List_reg_fit[[clust]]$Theta$xi.reg[GP])
+      return(ADtest$p.value)
+    } else {
+      return(NA)
+    }
+  }#end foreach GP
+  pval_test_ad_with_left[[clust]] <- unlist(list_pval)
+}#end for clust
+
+save(pval_test_ad_with_left, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/Test_fitting/test_AD_leftGP_",
+                                           seas,"_1fifthdata.Rdata"))
+
+# 1/10th data
 
 pval_test_ad_with_left <- list()
 
@@ -98,16 +215,20 @@ for (clust in 1:length(List_keep_coord)) {
     LAT <- List_keep_coord[[clust]]$keep_lat[GP]
     
     if(!is.na(sum(precip_ERA5[LON-1,LAT,]))){
-      seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON-1,LAT,], precip_date = date_ERA5)
+      seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON-1,LAT,],
+                                                precip_date = date_ERA5, thshld=1)
     } else {
       if(!is.na(sum(precip_ERA5[LON+1,LAT,]))){
-        seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON+1,LAT,], precip_date = date_ERA5)
+        seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON+1,LAT,],
+                                                  precip_date = date_ERA5, thshld=1)
       } else {
         if(!is.na(sum(precip_ERA5[LON,LAT-1,]))){
-          seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT-1,], precip_date = date_ERA5)
+          seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT-1,],
+                                                    precip_date = date_ERA5, thshld=1)
         }else {
           if(!is.na(sum(precip_ERA5[LON,LAT+1,]))){
-            seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT+1,], precip_date = date_ERA5)
+            seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT+1,],
+                                                      precip_date = date_ERA5, thshld=1)
           } else {
             seas_precip_local <- NA
           }#end if else top
@@ -117,8 +238,16 @@ for (clust in 1:length(List_keep_coord)) {
     
     
     if(!is.na(seas_precip_local)){
-      ADtest <- goftest::ad.test(x=seas_precip_local[(1:length(seas_precip_local))[which((1:length(seas_precip_local)%%3)==1)]],
-                                 null = pextgp, kappa = List_reg_fit[[clust]]$Theta$kappa[GP], sigma = List_reg_fit[[clust]]$Theta$sigma[GP],
+      
+      pExtGP_conditional_gtu <- function(q,u=1,kappa,sigma,xi){
+        stopifnot(sum(q<=u)==0)
+        F_u <- pextgp(u, kappa = kappa, sigma = sigma, xi = xi)
+        p <- (pextgp(q, kappa = kappa, sigma = sigma, xi = xi)-F_u)/(1-F_u)
+        return(p)
+      }
+      
+      ADtest <- goftest::ad.test(x=seas_precip_local[which((1:length(seas_precip_local)%%10)==1)],
+                                 null = pExtGP_conditional_gtu, kappa = List_reg_fit[[clust]]$Theta$kappa[GP], sigma = List_reg_fit[[clust]]$Theta$sigma[GP],
                                  xi = List_reg_fit[[clust]]$Theta$xi.reg[GP])
       return(ADtest$p.value)
     } else {
@@ -129,13 +258,15 @@ for (clust in 1:length(List_keep_coord)) {
 }#end for clust
 
 save(pval_test_ad_with_left, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/Test_fitting/test_AD_leftGP_",
-                                           seas,".Rdata"))
+                                           seas,"_1tenthdata.Rdata"))
 
 
 
 
 
-# ADtest local fit ---------------------------------------------------
+# AD test local fit ---------------------------------------------------
+
+#1/3rd data
 pval_test_ad_with_left_local <- list()
 
 for (clust in 1:length(List_keep_coord)) {
@@ -148,16 +279,20 @@ for (clust in 1:length(List_keep_coord)) {
     LAT <- List_keep_coord[[clust]]$keep_lat[GP]
     
     if(!is.na(sum(precip_ERA5[LON-1,LAT,]))){
-      seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON-1,LAT,], precip_date = date_ERA5)
+      seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON-1,LAT,],
+                                                precip_date = date_ERA5, thshld=1)
     } else {
       if(!is.na(sum(precip_ERA5[LON+1,LAT,]))){
-        seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON+1,LAT,], precip_date = date_ERA5)
+        seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON+1,LAT,],
+                                                  precip_date = date_ERA5, thshld=1)
       } else {
         if(!is.na(sum(precip_ERA5[LON,LAT-1,]))){
-          seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT-1,], precip_date = date_ERA5)
+          seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT-1,],
+                                                    precip_date = date_ERA5, thshld=1)
         }else {
           if(!is.na(sum(precip_ERA5[LON,LAT+1,]))){
-            seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT+1,], precip_date = date_ERA5)
+            seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT+1,],
+                                                      precip_date = date_ERA5, thshld=1)
           } else {
             seas_precip_local <- NA
           }#end if else top
@@ -167,8 +302,16 @@ for (clust in 1:length(List_keep_coord)) {
     
     
     if(!is.na(seas_precip_local)){
-      ADtest <- goftest::ad.test(x=seas_precip_local[(1:length(seas_precip_local))[which((1:length(seas_precip_local)%%3)==1)]],
-                                 null = pextgp, kappa = List_reg_fit[[clust]]$Theta_0$kappa[GP], sigma = List_reg_fit[[clust]]$Theta_0$sigma[GP],
+      
+      pExtGP_conditional_gtu <- function(q,u=1,kappa,sigma,xi){
+        stopifnot(sum(q<=u)==0)
+        F_u <- pextgp(u, kappa = kappa, sigma = sigma, xi = xi)
+        p <- (pextgp(q, kappa = kappa, sigma = sigma, xi = xi)-F_u)/(1-F_u)
+        return(p)
+      }
+      
+      ADtest <- goftest::ad.test(x=seas_precip_local[which((1:length(seas_precip_local)%%3)==1)],
+                                 null = pExtGP_conditional_gtu, kappa = List_reg_fit[[clust]]$Theta_0$kappa[GP], sigma = List_reg_fit[[clust]]$Theta_0$sigma[GP],
                                  xi = List_reg_fit[[clust]]$Theta_0$xi.site[GP])
       return(ADtest$p.value)
     } else {
@@ -179,13 +322,136 @@ for (clust in 1:length(List_keep_coord)) {
 }#end for clust
 
 save(pval_test_ad_with_left_local, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/Test_fitting/test_AD_leftGP_",
-                                                 seas,"_LocalFit.Rdata"))
+                                                 seas,"_LocalFit_1thirddata.Rdata"))
 
 
-# QQ-plots regio ------------------------------------------------------------------
+
+#1/5th data
+pval_test_ad_with_left_local <- list()
+
+for (clust in 1:length(List_keep_coord)) {
+  npoints <- length(List_reg_fit[[clust]]$Theta_0$xi.site)
+  pval_test_ad_with_left_local[[clust]] <- numeric(length = npoints)
+  print(paste("cluster",clust))
+  
+  list_pval <- foreach(GP=1:npoints) %dopar% {
+    LON <- List_keep_coord[[clust]]$keep_lon[GP]
+    LAT <- List_keep_coord[[clust]]$keep_lat[GP]
+    
+    if(!is.na(sum(precip_ERA5[LON-1,LAT,]))){
+      seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON-1,LAT,],
+                                                precip_date = date_ERA5, thshld=1)
+    } else {
+      if(!is.na(sum(precip_ERA5[LON+1,LAT,]))){
+        seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON+1,LAT,],
+                                                  precip_date = date_ERA5, thshld=1)
+      } else {
+        if(!is.na(sum(precip_ERA5[LON,LAT-1,]))){
+          seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT-1,],
+                                                    precip_date = date_ERA5, thshld=1)
+        }else {
+          if(!is.na(sum(precip_ERA5[LON,LAT+1,]))){
+            seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT+1,],
+                                                      precip_date = date_ERA5, thshld=1)
+          } else {
+            seas_precip_local <- NA
+          }#end if else top
+        }#end if else bottom
+      }#end if else right
+    }#and if else left
+    
+    
+    if(!is.na(seas_precip_local)){
+      
+      pExtGP_conditional_gtu <- function(q,u=1,kappa,sigma,xi){
+        stopifnot(sum(q<=u)==0)
+        F_u <- pextgp(u, kappa = kappa, sigma = sigma, xi = xi)
+        p <- (pextgp(q, kappa = kappa, sigma = sigma, xi = xi)-F_u)/(1-F_u)
+        return(p)
+      }
+      
+      ADtest <- goftest::ad.test(x=seas_precip_local[which((1:length(seas_precip_local)%%5)==1)],
+                                 null = pExtGP_conditional_gtu, kappa = List_reg_fit[[clust]]$Theta_0$kappa[GP], sigma = List_reg_fit[[clust]]$Theta_0$sigma[GP],
+                                 xi = List_reg_fit[[clust]]$Theta_0$xi.site[GP])
+      return(ADtest$p.value)
+    } else {
+      return(NA)
+    }
+  }#end foreach GP
+  pval_test_ad_with_left_local[[clust]] <- unlist(list_pval)
+}#end for clust
+
+save(pval_test_ad_with_left_local, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/Test_fitting/test_AD_leftGP_",
+                                                 seas,"_LocalFit_1fifthdata.Rdata"))
+
+
+#1/10th data
+
+pval_test_ad_with_left_local <- list()
+
+for (clust in 1:length(List_keep_coord)) {
+  npoints <- length(List_reg_fit[[clust]]$Theta_0$xi.site)
+  pval_test_ad_with_left_local[[clust]] <- numeric(length = npoints)
+  print(paste("cluster",clust))
+  
+  list_pval <- foreach(GP=1:npoints) %dopar% {
+    LON <- List_keep_coord[[clust]]$keep_lon[GP]
+    LAT <- List_keep_coord[[clust]]$keep_lat[GP]
+    
+    if(!is.na(sum(precip_ERA5[LON-1,LAT,]))){
+      seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON-1,LAT,],
+                                                precip_date = date_ERA5, thshld=1)
+    } else {
+      if(!is.na(sum(precip_ERA5[LON+1,LAT,]))){
+        seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON+1,LAT,],
+                                                  precip_date = date_ERA5, thshld=1)
+      } else {
+        if(!is.na(sum(precip_ERA5[LON,LAT-1,]))){
+          seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT-1,],
+                                                    precip_date = date_ERA5, thshld=1)
+        }else {
+          if(!is.na(sum(precip_ERA5[LON,LAT+1,]))){
+            seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT+1,],
+                                                      precip_date = date_ERA5, thshld=1)
+          } else {
+            seas_precip_local <- NA
+          }#end if else top
+        }#end if else bottom
+      }#end if else right
+    }#and if else left
+    
+    
+    if(!is.na(seas_precip_local)){
+      
+      pExtGP_conditional_gtu <- function(q,u=1,kappa,sigma,xi){
+        stopifnot(sum(q<=u)==0)
+        F_u <- pextgp(u, kappa = kappa, sigma = sigma, xi = xi)
+        p <- (pextgp(q, kappa = kappa, sigma = sigma, xi = xi)-F_u)/(1-F_u)
+        return(p)
+      }
+      
+      ADtest <- goftest::ad.test(x=seas_precip_local[which((1:length(seas_precip_local)%%10)==1)],
+                                 null = pExtGP_conditional_gtu, kappa = List_reg_fit[[clust]]$Theta_0$kappa[GP], sigma = List_reg_fit[[clust]]$Theta_0$sigma[GP],
+                                 xi = List_reg_fit[[clust]]$Theta_0$xi.site[GP])
+      return(ADtest$p.value)
+    } else {
+      return(NA)
+    }
+  }#end foreach GP
+  pval_test_ad_with_left_local[[clust]] <- unlist(list_pval)
+}#end for clust
+
+save(pval_test_ad_with_left_local, file = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/Test_fitting/test_AD_leftGP_",
+                                                 seas,"_LocalFit_1tenthdata.Rdata"))
+
+
+
+
+
+# QQ-plots medoid regio ------------------------------------------------------------------
 load(paste0("/scratch3/pauline/Regpd_spatial_clustering/Compute_Clusters/list_partition_16_ERA5_EU_", seas,"_V3.Rdata"))
 load(paste0("/scratch3/pauline/Regpd_spatial_clustering/Compute_Clusters/coord_in_list_",seas,".Rdata"))
-status_med <- character(length = 2)
+status_med <- character()
 for (med in 1:length(list_partition[[1]]$medoids)) {
   
   LON <- keep_coord_list[list_partition[[1]]$medoids[med],"LON ref"]
@@ -195,10 +461,12 @@ for (med in 1:length(list_partition[[1]]$medoids)) {
     status_med <- "medoid=fitted distrib"
     coord_ref <- which(List_keep_coord[[med]]$keep_lon==LON & List_keep_coord[[med]]$keep_lat==LAT)
     
+    nwet_days_fit <- floor(length(extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT,], precip_date = date_ERA5))/3)
+    
     theoritical_param <- as.matrix(c(List_reg_fit[[med]]$Theta$kappa[coord_ref], List_reg_fit[[med]]$Theta$sigma[coord_ref],
                                      List_reg_fit[[med]]$Theta$xi.reg[coord_ref]))
-    theoritical_param_loc <- as.matrix(c(List_reg_fit[[cl]]$Theta_0$kappa[coord_ref], List_reg_fit[[cl]]$Theta_0$sigma[coord_ref],
-                                         List_reg_fit[[cl]]$Theta_0$xi.site[coord_ref]))
+    theoritical_param_loc <- as.matrix(c(List_reg_fit[[med]]$Theta_0$kappa[coord_ref], List_reg_fit[[med]]$Theta_0$sigma[coord_ref],
+                                         List_reg_fit[[med]]$Theta_0$xi.site[coord_ref]))
     rownames(theoritical_param) <- c("kappa", "sigma", "xi");rownames(theoritical_param_loc) <- c("kappa", "sigma", "xi")
     
     
@@ -227,16 +495,16 @@ for (med in 1:length(list_partition[[1]]$medoids)) {
     
     seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT,], precip_date = date_ERA5)
     seas_precip1tird <- seas_precip_local[(1:length(seas_precip_local))[which((1:length(seas_precip_local)%%3)==1)]]
-    
+    nwet_days_fit <- length(seas_precip1tird)
     if(!is.na(sum(precip_ERA5[LON-1,LAT,]))){
       coord_ref <- which(List_keep_coord[[med]]$keep_lon==(LON-1) &
                            List_keep_coord[[med]]$keep_lat==(LAT))
       
       
       theoritical_param <- as.matrix(c(List_reg_fit[[med]]$Theta$kappa[coord_ref], List_reg_fit[[med]]$Theta$sigma[coord_ref],
-                                     List_reg_fit[[med]]$Theta$xi.reg[coord_ref]))
-      theoritical_param_loc <- as.matrix(c(List_reg_fit[[cl]]$Theta_0$kappa[coord_ref], List_reg_fit[[cl]]$Theta_0$sigma[coord_ref],
-                                           List_reg_fit[[cl]]$Theta_0$xi.site[coord_ref]))
+                                       List_reg_fit[[med]]$Theta$xi.reg[coord_ref]))
+      theoritical_param_loc <- as.matrix(c(List_reg_fit[[med]]$Theta_0$kappa[coord_ref], List_reg_fit[[med]]$Theta_0$sigma[coord_ref],
+                                           List_reg_fit[[med]]$Theta_0$xi.site[coord_ref]))
       
       rownames(theoritical_param) <- c("kappa", "sigma", "xi");rownames(theoritical_param_loc) <- c("kappa", "sigma", "xi")
       
@@ -248,8 +516,8 @@ for (med in 1:length(list_partition[[1]]$medoids)) {
         
         theoritical_param <- as.matrix(c(List_reg_fit[[med]]$Theta$kappa[coord_ref], List_reg_fit[[med]]$Theta$sigma[coord_ref],
                                          List_reg_fit[[med]]$Theta$xi.reg[coord_ref]))
-        theoritical_param_loc <- as.matrix(c(List_reg_fit[[cl]]$Theta_0$kappa[coord_ref], List_reg_fit[[cl]]$Theta_0$sigma[coord_ref],
-                                             List_reg_fit[[cl]]$Theta_0$xi.site[coord_ref]))
+        theoritical_param_loc <- as.matrix(c(List_reg_fit[[med]]$Theta_0$kappa[coord_ref], List_reg_fit[[med]]$Theta_0$sigma[coord_ref],
+                                             List_reg_fit[[med]]$Theta_0$xi.site[coord_ref]))
         
         rownames(theoritical_param) <- c("kappa", "sigma", "xi");rownames(theoritical_param_loc) <- c("kappa", "sigma", "xi")
       } else {
@@ -260,8 +528,8 @@ for (med in 1:length(list_partition[[1]]$medoids)) {
           
           theoritical_param <- as.matrix(c(List_reg_fit[[med]]$Theta$kappa[coord_ref], List_reg_fit[[med]]$Theta$sigma[coord_ref],
                                            List_reg_fit[[med]]$Theta$xi.reg[coord_ref]))
-          theoritical_param_loc <- as.matrix(c(List_reg_fit[[cl]]$Theta_0$kappa[coord_ref], List_reg_fit[[cl]]$Theta_0$sigma[coord_ref],
-                                               List_reg_fit[[cl]]$Theta_0$xi.site[coord_ref]))
+          theoritical_param_loc <- as.matrix(c(List_reg_fit[[med]]$Theta_0$kappa[coord_ref], List_reg_fit[[med]]$Theta_0$sigma[coord_ref],
+                                               List_reg_fit[[med]]$Theta_0$xi.site[coord_ref]))
           
           rownames(theoritical_param) <- c("kappa", "sigma", "xi");rownames(theoritical_param_loc) <- c("kappa", "sigma", "xi")
         }else {
@@ -272,8 +540,8 @@ for (med in 1:length(list_partition[[1]]$medoids)) {
             
             theoritical_param <- as.matrix(c(List_reg_fit[[med]]$Theta$kappa[coord_ref], List_reg_fit[[med]]$Theta$sigma[coord_ref],
                                              List_reg_fit[[med]]$Theta$xi.reg[coord_ref]))
-            theoritical_param_loc <- as.matrix(c(List_reg_fit[[cl]]$Theta_0$kappa[coord_ref], List_reg_fit[[cl]]$Theta_0$sigma[coord_ref],
-                                                 List_reg_fit[[cl]]$Theta_0$xi.site[coord_ref]))
+            theoritical_param_loc <- as.matrix(c(List_reg_fit[[med]]$Theta_0$kappa[coord_ref], List_reg_fit[[med]]$Theta_0$sigma[coord_ref],
+                                                 List_reg_fit[[med]]$Theta_0$xi.site[coord_ref]))
             
             rownames(theoritical_param) <- c("kappa", "sigma", "xi");rownames(theoritical_param_loc) <- c("kappa", "sigma", "xi")
           } else {
@@ -285,19 +553,22 @@ for (med in 1:length(list_partition[[1]]$medoids)) {
     
   }#end if else LON LAT both even OR odd
   
-  proba_quantiles=c(seq(0.1,0.8,by = 0.1), seq(0.81,0.95, by = 0.01), seq(0.951,0.99, by = 0.005))
+  # proba_quantiles=c(seq(0.1,0.8,by = 0.1), seq(0.81,0.95, by = 0.01), seq(0.951,0.99, by = 0.005))
   
-  Q_emp <- quantile(ecdf(seas_precip1tird), probs=proba_quantiles)
-  Q_th <- qEGP(x = proba_quantiles, param = c(theoritical_param["xi",], theoritical_param["sigma",], theoritical_param["kappa",]))
-  Q_th_loc <- qEGP(x = proba_quantiles, param = c(theoritical_param_loc["xi",], theoritical_param_loc["sigma",], theoritical_param_loc["kappa",]))
-  
+  # Q_emp <- quantile(ecdf(seas_precip1tird), probs=proba_quantiles)
+  qemp2 <- sort(seas_precip1tird)
+  p=seq(from=1,to=length(qemp2)-0.1,length.out=length(qemp2))/length(qemp2)
+  Q_th <- qextgp(p = p, kappa = theoritical_param["kappa",], sigma = theoritical_param["sigma",], xi = theoritical_param["xi",])
+  Q_th_loc <- qextgp(p = p, kappa = theoritical_param_loc["kappa",], sigma = theoritical_param_loc["sigma",], xi = theoritical_param_loc["xi",])
+  # Q_th_loc <- qextgp(x = proba_quantiles, param = c(theoritical_param_loc["xi",], theoritical_param_loc["sigma",], theoritical_param_loc["kappa",]))
+  max_x_y <- max(c(Q_th, Q_th_loc))
   jpeg(filename = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/Test_fitting/qqplot_medoid_clust_",med,"_",seas,".jpg"),
-       width = 500,height = 500)
-  plot(Q_emp, Q_th, main=paste0(seas,": QQplot medoid cluster ", med, "\n",status_med),
+       width = 500,height = 500, quality = 85)
+  plot(qemp2, Q_th, main=paste0(seas,": QQplot medoid cluster ", med, "\n",status_med, "; nb. fitted wet days=", nwet_days_fit), xlim=c(0,max_x_y), ylim=c(0,max_x_y),
        xlab="Empirical quantile [mm/wetday]", ylab="Theoritical quantile [mm/wetday]", pch=18, col="gray", cex=2)
-  points(Q_emp, Q_th_loc, pch="+",cex=1.2,col="black")
+  points(qemp2, Q_th_loc, pch="+",cex=1.2,col="black")
   abline(b=1, a=0, lty=2)
-  legend("topleft", pch=c(18, 3), col = c("gray", "black"), legend = c("Regional fitting", "Local fitting"))
+  legend("bottomright", pch=c(18, 3), col = c("gray", "black"), legend = c("Regional fitting", "Local fitting"))
   dev.off()
   
 }#end for med
@@ -310,7 +581,7 @@ for (med in 1:length(list_partition[[1]]$medoids)) {
 # rownames(list_partition[[1]]$silinfo$widths)[1]
 # rownames(list_partition[[1]]$silinfo$widths)[length(list_partition[[1]]$silinfo$widths[,"sil_width"])]
 
-
+# QQ-plots maxmin silh regio ----------------------------------------------
 SIL_CLUS_1 <- as.matrix(list_partition[[1]]$silinfo$widths[as.numeric(which(list_partition[[1]]$silinfo$widths[,"cluster"]==1)),"sil_width"])
 SIL_CLUS_2 <- as.matrix(list_partition[[1]]$silinfo$widths[as.numeric(which(list_partition[[1]]$silinfo$widths[,"cluster"]==2)),"sil_width"])
 
@@ -337,7 +608,7 @@ for (GP in point_names) {
   
   LON <- keep_coord_list[GP_ref,"LON ref"]
   LAT <- keep_coord_list[GP_ref,"LAT ref"]
-  
+  nwet_days_fit <- floor(length(extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT,], precip_date = date_ERA5))/3)
   status_GP <- character()
   
   if(LON%%2==LAT%%2){
@@ -377,7 +648,7 @@ for (GP in point_names) {
     
     seas_precip_local <- extr_seas_pos_precip(season = seas, precip_timeserie = precip_ERA5[LON,LAT,], precip_date = date_ERA5)
     seas_precip1tird <- seas_precip_local[(1:length(seas_precip_local))[which((1:length(seas_precip_local)%%3)==1)]]
-    
+    nwet_days_fit <- length(seas_precip1tird)
     if(length(which(List_keep_coord[[cl]]$keep_lon==(LON-1) & List_keep_coord[[cl]]$keep_lat==(LAT)))){
       coord_ref <- which(List_keep_coord[[cl]]$keep_lon==(LON-1) &
                            List_keep_coord[[cl]]$keep_lat==(LAT))
@@ -440,18 +711,22 @@ for (GP in point_names) {
   }#end if else LON LAT both even OR odd
   if(length(theoritical_param)>0 & length(theoritical_param_loc)>0){
     proba_quantiles=c(seq(0.1,0.8,by = 0.1), seq(0.81,0.95, by = 0.01), seq(0.951,0.99, by = 0.005))
-  
-    Q_emp <- quantile(ecdf(seas_precip1tird), probs=proba_quantiles)
-    Q_th <- qEGP(x = proba_quantiles, param = c(theoritical_param["xi",], theoritical_param["sigma",], theoritical_param["kappa",]))
-    Q_th_loc <- qEGP(x = proba_quantiles, param = c(theoritical_param_loc["xi",], theoritical_param_loc["sigma",], theoritical_param_loc["kappa",]))
+    
+    # Q_emp <- quantile(ecdf(seas_precip1tird), probs=proba_quantiles)
+    qemp2 <- sort(seas_precip1tird)
+    p=seq(from=1,to=length(qemp2)-0.1,length.out=length(qemp2))/length(qemp2)
+    Q_th <- qextgp(p = p, kappa = theoritical_param["kappa",], sigma = theoritical_param["sigma",], xi = theoritical_param["xi",])
+    Q_th_loc <- qextgp(p = p, kappa = theoritical_param_loc["kappa",], sigma = theoritical_param_loc["sigma",], xi = theoritical_param_loc["xi",])
+    # Q_th_loc <- qextgp(x = proba_quantiles, param = c(theoritical_param_loc["xi",], theoritical_param_loc["sigma",], theoritical_param_loc["kappa",]))
+    max_x_y <- max(c(Q_th, Q_th_loc))
     
     jpeg(filename = paste0("/scratch3/pauline/Regpd_spatial_clustering/Regio_Fit_halfdata/Test_fitting/qqplot",filname,"_",seas,".jpg"),
-        width = 500,height = 500)
-    plot(Q_emp, Q_th, main=paste0(seas,": QQplot ", GP, "\n",status_GP),
-        xlab="Empirical quantile [mm/wetday]", ylab="Theoritical quantile [mm/wetday]", pch=18, col="gray", cex=2)
-    points(Q_emp, Q_th_loc, pch="+",cex=1.2,col="black")
+         width = 500,height = 500, quality = 85)
+    plot(qemp2, Q_th, main=paste0(seas,": QQplot ", GP, "\n",status_GP, "; nb. fitted wet days=", nwet_days_fit), xlim = c(0,max_x_y), ylim=c(0,max_x_y),
+         xlab="Empirical quantile [mm/wetday]", ylab="Theoritical quantile [mm/wetday]", pch=18, col="gray", cex=2)
+    points(qemp2, Q_th_loc, pch="+",cex=1.2,col="black")
     abline(b=1, a=0, lty=2)
-    legend("topleft", pch=c(18, 3), col = c("gray", "black"), legend = c("Regional fitting", "Local fitting"))
+    legend("bottomright", pch=c(18, 3), col = c("gray", "black"), legend = c("Regional fitting", "Local fitting"))
     dev.off()
   }#end if pb at GP
   
