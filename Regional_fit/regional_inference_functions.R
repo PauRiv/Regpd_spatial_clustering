@@ -223,9 +223,8 @@ fitEGPDkSemiRegCensoredIter.boot <- function(M,method="pwm",cens_thres=c(0,Inf),
   # M, matrix of positive precipitation 
   # Each row corresponds to a day, each col to a site
   # censor_thres, bounds to estimate parameters
-  # ParReg, method for regionalizing shape parameter xi : 
-  #         either "mean" (i.e. mean of the at-site estimates)
-  #         or "pool" (pool normalized data to estimate regional xi)
+  # sites, indices of GP/stations where local parameters are computed (e.g. medoid, min/max silhouette)
+  
   # thres = threshold of wet days (e.g. 2mm) if not null, provides conditional parameters
   
   #   VALUE
