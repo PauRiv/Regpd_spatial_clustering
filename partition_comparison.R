@@ -25,15 +25,24 @@ compute_criteria <- function(R.vect, krange, partition){
     crit_summary$s_dbw[k] = result$s_dbw
     crit_summary$davies_bouldin[k] = result$davies_bouldin
     
-    summary_criterion = crit_summary[-1,] #drop the first row, containing NA
   }
   
-  return(summary_criterion)
+  return(crit_summary)
 
   }# end function
 
+#optimal number of clusters according to each criterion
+# Maximize: silhouette, dunn  
+which.max(crit_summary$silhouette)
+which.max(crit_summary$dunn)
+# Minimize: xie_beni, s_dbw and davies_bouldin
+which.min(crit_summary$xie_beni)
+which.min(crit_summary$s_dbw)
+which.min(crit_summary$davies_bouldin)
+#plot criteria
 palette = c('#1f78b4','#33a02c','#e31a1c','#ff7f00','#6a3d9a')
-plot(x=krange, y = summary_criterion$silhouette,ylim=c(0,10),
+plot(x=krange, y = summary_criterion$silhouette,ylim=c(0,max(summary_criterion)),
+     ylab="criterion value",
      col=palette[1], type="b", pch = 16)
 for (i in 2:5) {
   color = palette[i]
