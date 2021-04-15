@@ -72,10 +72,9 @@ fitEGPDkSemiRegCensoredIter_paral <- function(M, ncores, method="pwm", cens_thre
     y = y[y>thres]-thres#consider only positive precipitation when thres =0
     moy = mean(y,na.rm=TRUE)
     obs_rr = rbind.fill.matrix(obs_rr,t(as.matrix(y)))#and fill the matrix with NA if needed
-    obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
+    # obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
   }#end loop on station for data formatting
   M = t(obs_rr)
-  MN=t(obs_norm)
   #definir Theta et sa forme (matrice ? liste ? dataframe ?)
   
   Theta_list <- foreach(station=1:nstat) %dopar% {
@@ -179,7 +178,7 @@ fitEGPDkSemiRegCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens
   CensoredMean = moyN  = rep(NA,nb_stat)
   #consider only days with data
   obs_rr = matrix(nrow=0,ncol=0)
-  obs_norm = matrix(0,nrow = 0,ncol =0)
+  # obs_norm = matrix(0,nrow = 0,ncol =0)
   Theta = list()
   Theta_init = list()
   kappa_init = sigma_init = xisite_init= rep(NA,nstat)
@@ -297,7 +296,7 @@ fitEGPDkREGCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens_thr
   CensoredMean = moyN  = rep(NA,nb_stat)
   #consider only days with data
   obs_rr = matrix(nrow=0,ncol=0)
-  obs_norm = matrix(0,nrow = 0,ncol =0)
+  # obs_norm = matrix(0,nrow = 0,ncol =0)
   Theta = list()
   Theta_init = list()
   kappa_init = sigma_init = xisite_init= rep(NA,nstat)
