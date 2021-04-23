@@ -83,7 +83,7 @@ fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), rou
   
   loop <-0; increment <-precision +.1 
   log.init<-0
-  Xi.old <- unique(Theta$xi.reg)
+  Xi.old <- unique(ThetaS$xi.reg)
   u = cens_thres[1]
   
   
