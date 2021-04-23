@@ -78,7 +78,7 @@ fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), rou
   kappa_reg = mean(kappa_init)
   
   # INIT OF THE LOOP ON CHOSEN SITES
-  Theta_init = list("kappa"=kappa_init[sites],"sigma"=sigma_init[sites],"xi.reg"=rep(xi_init,nb_stat))
+  Theta_init = list("kappa"=kappa_init[sites],"sigma"=sigma_init[sites],"xi.reg"=rep(xi_reg,nb_stat))
   ThetaS = ThetaR = Theta_init
   
   loop <-0; increment <-precision +.1 
