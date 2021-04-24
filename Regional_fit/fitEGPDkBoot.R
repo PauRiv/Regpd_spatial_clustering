@@ -7,7 +7,7 @@ library(foreach);library(iterators);library(parallel);library(doParallel) # para
 
 #simulation of data below
 fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), round=0.1,
-                           thres=0, precision=.0001,
+                          thres=0, precision=.0001,
                           ParInit=c(0.5,0.5,0.2), loop.max = 20){
   #   DESCRIPTION
   # Fit regional, semi regional and local versions of EGPD in Naveau et al. (2016).
@@ -16,7 +16,7 @@ fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), rou
   # Each row corresponds to a day, each col to a site
   # ncores, number of cores to use in the parallelization
   # censor_thres, bounds to estimate parameters
-   # thres = threshold of wet days (e.g. 2mm) if not null, provides conditional parameters
+  # thres = threshold of wet days (e.g. 2mm) if not null, provides conditional parameters
   
   #   VALUE
   # List of parameters (ThetaReg, ThetaSReg ,Theta_0)
@@ -27,7 +27,7 @@ fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), rou
   #   - the third element of the list contains initialization of parameters (i.e. at-site estimates)
   ###############################################
   #if only one temporal serie put in a matrix
-
+  
   registerDoParallel(cores=ncores)
   
   if(is.null(dim(M))){
@@ -60,6 +60,7 @@ fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), rou
   
   # INITIALIZATION PARAMETERS (provide at-site parameters)
   Theta_list <- foreach(station=1:nstat) %dopar% {
+    library(mev)
     y =na.omit(M[,station])
     fit_init = fit.extgp(y,model=1,method="pwm",init = ParInit, censoring = cens_thres, rounded = round,plots = FALSE)
     kappa_init = fit_init$fit$pwm[1]
@@ -106,7 +107,7 @@ fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), rou
     ThetaS$sigma <- Sigma.new
     
     moyN_list <- foreach(station=1:nb_stat) %dopar% {
-      site = sites[i]
+      site = sites[station]
       y = na.omit(M[,site])
       return(mean(y[y/Sigma.new[station]>u/Sigma.new[station]]/Sigma.new[station],na.rm=TRUE))
     } #end foreach station
@@ -122,12 +123,12 @@ fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), rou
     
     #########################
     ##  REGIONAL FLEX AND SCALE PARAMETERS
-   
+    
     SigmaR.old <- ThetaR$sigma
-
+    
     SigmaR.new <- (xi_reg*CensoredMean)/(kappa_reg*IB(H(u,SigmaR.old,xi_reg),
-                                                     1,kappa_reg,1-xi_reg)/Fbar(u,kappa_reg,
-                                                                                SigmaR.old,xi_reg)-1)
+                                                      1,kappa_reg,1-xi_reg)/Fbar(u,kappa_reg,
+                                                                                 SigmaR.old,xi_reg)-1)
     
     
     ThetaR$sigma <- SigmaR.new
@@ -143,10 +144,10 @@ fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), rou
     
   }#end while
   
-kappaS = ThetaS$kappa; sigmaS = ThetaS$sigma; sigmaR = ThetaR$sigma
-return(list("shape"=shape, 
-              "scale"= list("local"=sigma_init, "SReg"=sigmaS,"REG"=sigmaR),
-              "flexibility" = list("local"= kappa_init, "SReg" = kappaS, "REG" = kappa_reg)))
+  kappaS = ThetaS$kappa; sigmaS = ThetaS$sigma; sigmaR = ThetaR$sigma
+  return(list("shape"=shape, 
+              "scale"= list("sigma.local"=sigma_init, "sigma.semireg"=sigmaS,"sigma.reg"=sigmaR),
+              "flexibility" = list("kappa.local"= kappa_init, "kappa.semireg" = kappaS, "kappa.reg" = kappa_reg)))
 }#end function fitEGPDk.boot
 
 
@@ -173,7 +174,6 @@ xi = c(.1,.2)
 sigma = c(1,16)
 kappa = c(1,4)
 M = simulEGPD(kappa = kappa, sigma=sigma,xi=xi,n=200)
-
 
 
 
