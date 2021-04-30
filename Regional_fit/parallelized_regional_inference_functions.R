@@ -78,6 +78,7 @@ fitEGPDkSemiRegCensoredIter_paral <- function(M, ncores, method="pwm", cens_thre
   #definir Theta et sa forme (matrice ? liste ? dataframe ?)
   
   Theta_list <- foreach(station=1:nstat) %dopar% {
+    library(mev)
     y =na.omit(M[,station])
     fit_init = fit.extgp(y,model=1,method=method,init =ParInit, censoring = cens_thres, rounded = round,plots = FALSE)
     kappa_init = fit_init$fit$pwm[1]
@@ -196,6 +197,7 @@ fitEGPDkSemiRegCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens
   M = t(obs_rr)
 
   Theta_list <- foreach(station=1:nstat) %dopar% {
+    library(mev)
     y =na.omit(M[,station])
     fit_init = fit.extgp(y,model=1,method=method,init =ParInit, censoring = cens_thres, rounded = round,plots = FALSE)
     kappa_init = fit_init$fit$pwm[1]
@@ -314,6 +316,7 @@ fitEGPDkREGCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens_thr
   M = t(obs_rr)
   
   Theta_list <- foreach(station=1:nstat) %dopar% {
+    library(mev)
     y =na.omit(M[,station])
     fit_init = fit.extgp(y,model=1,method=method,init =ParInit, censoring = cens_thres, rounded = round,plots = FALSE)
     kappa_init = fit_init$fit$pwm[1]
@@ -331,7 +334,7 @@ fitEGPDkREGCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens_thr
   
   kappa_init = mean(kappasite_init)#regional version of kappa
   xi_init = mean(xisite_init)
-  Theta_init = list("kappa"=rep(kappa_init,nb_stat),"sigma"=sigma_init[sites],"xi.reg"=rep(xi_init,nb_stat))
+  Theta_init = list("kappa.reg"=rep(kappa_init,nb_stat),"sigma"=sigma_init[sites],"xi.reg"=rep(xi_init,nb_stat))
   
   Theta = Theta_init
   Theta_0 = list("kappa"=kappa_init[sites],"sigma"=sigma_init[sites],"xi.site"=xisite_init[sites],

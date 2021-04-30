@@ -1,6 +1,5 @@
 library(plyr)#rbind.fill.matrix
 library(mev)
-library(evd)
 library(evd)#pgpd
 library(zipfR)#incomplete beta function
 library(foreach);library(iterators);library(parallel);library(doParallel) # parallelization
@@ -145,9 +144,9 @@ fitEGPDk.boot <- function(M, sites = "default", ncores, cens_thres=c(1,Inf), rou
   }#end while
   
   kappaS = ThetaS$kappa; sigmaS = ThetaS$sigma; sigmaR = ThetaR$sigma
-  return(list("shape"=shape, 
-              "scale"= list("sigma.local"=sigma_init, "sigma.semireg"=sigmaS,"sigma.reg"=sigmaR),
-              "flexibility" = list("kappa.local"= kappa_init, "kappa.semireg" = kappaS, "kappa.reg" = kappa_reg)))
+  return(list("xi"=shape, 
+              "sigma"= list("local"=sigma_init, "semireg"=sigmaS,"reg"=sigmaR),
+              "kappa" = list("local"= kappa_init, "semireg" = kappaS, "reg" = kappa_reg)))
 }#end function fitEGPDk.boot
 
 
@@ -170,9 +169,9 @@ simulEGPD<-function( kappa=1/10, sigma, xi,n=100){
   }
   return(out)
 }
-xi = c(.1,.2)
+xi = c(.1,.1)
 sigma = c(1,16)
-kappa = c(1,4)
+kappa = c(2,2)
 M = simulEGPD(kappa = kappa, sigma=sigma,xi=xi,n=200)
 
 
