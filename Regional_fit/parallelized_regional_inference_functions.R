@@ -194,6 +194,7 @@ fitEGPDkREGCensorIter_paral <- function(M,method="pwm",cens_thres=c(0,Inf),round
   #definir Theta et sa forme (matrice ? liste ? dataframe ?)
   
   Theta_list <- foreach(station=1:nstat) %dopar% {
+    library(mev)
     y =na.omit(M[,station])
     fit_init = fit.extgp(y,model=1,method=method,init =ParInit, censoring = cens_thres, rounded = round,plots = FALSE)
     kappasite_init = fit_init$fit$pwm[1]
