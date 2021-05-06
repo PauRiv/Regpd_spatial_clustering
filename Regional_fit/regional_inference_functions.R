@@ -318,7 +318,7 @@ fitEGPDkREG.boot <- function(M,method="pwm",cens_thres=c(0,Inf),round=0.1,
                              sites = "all", thres=0, precision=.0001,
                              ParInit=c(0.5,0.5,0.2), loop.max = 10){
   #   DESCRIPTION
-  # Fit a (semi)regional version of EGPD for chosen sites in a same cluster in Naveau et al. (2016).
+  # Fit a regional version of EGPD for chosen sites in a same cluster in Naveau et al. (2016).
   #   ARGUMENTS
   # M, matrix of positive precipitation 
   # Each row corresponds to a day, each col to a site
@@ -328,7 +328,7 @@ fitEGPDkREG.boot <- function(M,method="pwm",cens_thres=c(0,Inf),round=0.1,
   
   #   VALUE
   # List of parameters (Theta,Theta_0)
-  #   - the fist element of the list is the list of semi-regional flexibility parameter kappa,
+  #   - the fist element of the list is the regional flexibility parameter kappa,
   #     semi-regional scale parameters sigma and regional shape parameter xi.
   #   - the second element of the list contains initialization of parameters (i.e. at-site estimates)
   ###############################################
