@@ -25,14 +25,16 @@ Fbar <- function(x,kappa,sigma,xi){
   return(z)
 }
 
-fitEGPDkSemiRegCensoredIter_paral <- function(M, ncores, method="pwm", cens_thres=c(0,Inf),round=0.1,
-                                        ParReg = "mean", thres=0, precision=.0001,
-                                        ParInit=c(0.5,0.5,0.2), loop.max = 20){
+
+
+
+fitEGPDkSemiRegCensoredIter_paral <- function(M,ncores,method="pwm",cens_thres=c(0,Inf),round=0.1,
+                                        thres=0, precision=.0001,
+                                        ParInit=c(0.5,0.5,0.2), loop.max = 10){
   #   DESCRIPTION
-  # Fit a (semi)regional version of EGPD in Naveau et al. (2016).
+  # Fit a SEMI regional version of EGPD in Naveau et al. (2016).
   #   ARGUMENTS
-  # M, matrix of positive precipitation (1 col = 1 station)
-  # ncores, number of cores to use in the parallelization
+  # M, matrix of positive precipitation 
   # Each row corresponds to a day, each col to a site
   # censor_thres, bounds to estimate parameters
   # ParReg, method for regionalizing shape parameter xi : 
@@ -72,9 +74,10 @@ fitEGPDkSemiRegCensoredIter_paral <- function(M, ncores, method="pwm", cens_thre
     y = y[y>thres]-thres#consider only positive precipitation when thres =0
     moy = mean(y,na.rm=TRUE)
     obs_rr = rbind.fill.matrix(obs_rr,t(as.matrix(y)))#and fill the matrix with NA if needed
-    # obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
+    obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
   }#end loop on station for data formatting
   M = t(obs_rr)
+  MN=t(obs_norm)
   #definir Theta et sa forme (matrice ? liste ? dataframe ?)
   
   Theta_list <- foreach(station=1:nstat) %dopar% {
@@ -127,7 +130,6 @@ fitEGPDkSemiRegCensoredIter_paral <- function(M, ncores, method="pwm", cens_thre
     
     moyN <- unlist(moyN_list) # at site censored mean (data normalized by sigma.new)
     
-    
     Kappa.new = (Xi.old*moyN)/(1*IB(H(u,Sigma.new,Xi.old),
                                     1,Kappa.old,1-Xi.old)/Fbar(u,Kappa.old,
                                                                Sigma.new,Xi.old)-1/Kappa.old)
@@ -139,20 +141,114 @@ fitEGPDkSemiRegCensoredIter_paral <- function(M, ncores, method="pwm", cens_thre
   }#end while
   
   
-  return(list("Theta"=Theta,"Theta_0"=Theta_0))
+  return(list("Theta"=Theta,"Theta_loc"=Theta_0))
 }# end function fitEGPDkSemiRegCensoredIter_paral
 
 
-
-
-fitEGPDkSemiRegCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens_thres=c(0,Inf),round=0.1,
-                                                   sites = "default", thres=0, precision=.0001,
-                                              ParInit=c(0.5,0.5,0.2), loop.max = 20){
+fitEGPDkREGCensorIter_paral <- function(M,method="pwm",cens_thres=c(0,Inf),round=0.1,
+                                  thres=0, precision=.0001,
+                                  ParInit=c(0.5,0.5,0.2), loop.max = 10){
   #   DESCRIPTION
-  # Fit a (semi)regional version of EGPD in Naveau et al. (2016).
+  # Fit a REGIONAL  version of EGPD in Naveau et al. (2016).
   #   ARGUMENTS
-  # M, matrix of positive precipitation (1 col = 1 station)
-  # ncores, number of cores to use in the parallelization
+  # M, matrix of positive precipitation 
+  # Each row corresponds to a day, each col to a site
+  # censor_thres, bounds to estimate parameters
+  # ParReg, method for regionalizing shape parameter xi : 
+  #         either "mean" (i.e. mean of the at-site estimates)
+  #         or "pool" (pool normalized data to estimate regional xi)
+  # thres = threshold of wet days (e.g. 2mm) if not null, provides conditional parameters
+  
+  #   VALUE
+  # List of parameters: (Theta,Theta_0)
+  #   - the fist element of the list is the list of regional kappa, semi-regional scale parameters sigma_i, and regional shape parameter xi
+  #   - the second element of the list contains initialization parameters (at-site estimates)
+  ###############################################
+  #if only one temporal serie put in a matrix
+  
+  if(is.null(dim(M))){
+    M = as.matrix(M,ncol=1)}
+  nday = nrow(M)
+  nstat = ncol(M)
+  
+  Sigma_names=Kappa_names=rep(NA,nstat)
+  CensoredMean = moyN  = rep(NA,nstat)
+  #consider only days with data
+  obs_rr = matrix(nrow=0,ncol=0)
+  obs_norm = matrix(0,nrow = 0,ncol =0)
+  Theta = list()
+  Theta_init = list()
+  kappasite_init = sigma_init = xisite_init= rep(NA,nstat)
+  for (station in 1:nstat){
+    Sigma_names[station] = paste("sigma",station,sep="_")
+    
+    y = M[,station]
+    y = y[!is.na(y)]
+    y = y[y>thres]-thres#consider only positive precipitation when thres =0
+    moy = mean(y,na.rm=TRUE)
+    obs_rr = rbind.fill.matrix(obs_rr,t(as.matrix(y)))#and fill the matrix with NA if needed
+    obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
+  }#end loop on station for data formatting
+  M = t(obs_rr)
+  MN=t(obs_norm)
+  #definir Theta et sa forme (matrice ? liste ? dataframe ?)
+  
+  Theta_list <- foreach(station=1:nstat) %dopar% {
+    y =na.omit(M[,station])
+    fit_init = fit.extgp(y,model=1,method=method,init =ParInit, censoring = cens_thres, rounded = round,plots = FALSE)
+    kappasite_init = fit_init$fit$pwm[1]
+    sigma_init = fit_init$fit$pwm[2]
+    xisite_init = fit_init$fit$pwm[3]
+    return(c(kappasite_init, sigma_init, xisite_init))
+  }#end foreach station for initialization
+  Theta_loc_mat <- matrix(unlist(Theta_list), ncol = length(Theta_list))
+  Theta_loc=list("kappai" = Theta_loc_mat[1,],"sigmai"=Theta_loc_mat[2,],"xii"=Theta_loc_mat[3,])
+  
+  kappa_init = mean(Theta_loc$kappai)
+  xi_init = mean(Theta_loc$xii)
+  sigma_init = Theta_loc$sigmai
+  Theta_init = list("kappa.reg"=rep(kappa_init,nstat),"sigma"=sigma_init,"xi.reg"=rep(xi_init,nstat))
+  
+  Theta = Theta_init
+  Theta_0 = list("kappa.reg"=rep(kappa_init,nstat),"sigma"=sigma_init,"xi.reg"=rep(xi_init,nstat),
+                 "kappa.site"=Theta_loc$kappai,"xi.site"=Theta_loc$xii)
+  loop <-0; increment <-precision +.1 
+  log.init<-0
+  Xi.old <- unique(Theta$xi.reg)
+  Kappa.old = unique(Theta$kappa.reg)
+  u = cens_thres[1]
+  while((loop<loop.max)&(increment>precision)){
+    loop <- loop+1
+    Sigma.old <- Theta$sigma
+    
+    CensoredMean_list <- foreach(station=1:nstat) %dopar% {
+      y = na.omit(M[,station])
+      return(mean(y[y>u],na.rm=TRUE))
+    } #end foreach station 
+    CensoredMean <- unlist(CensoredMean_list)#at-site censored mean 
+    
+    
+    Sigma.new <- (Xi.old*CensoredMean)/(Kappa.old*IB(H(u,Sigma.old,Xi.old),
+                                                     1,Kappa.old,1-Xi.old)/Fbar(u,Kappa.old,
+                                                                                Sigma.old,Xi.old)-1)
+    Theta$sigma <- Sigma.new
+    
+    increment<-max(abs(Sigma.old-Theta$sigma))
+    
+  }#end while
+  
+  
+  return(list("Theta"=Theta,"Theta_loc"=Theta_loc))
+} #end function fitEGPDkREGCensorIter_paral
+
+#USE THESE ONES
+fitEGPDkSemiReg.boot_paral <- function(M,ncores,method="pwm",cens_thres=c(0,Inf),round=0.1,
+                                 sites = "all", thres=0, precision=.0001,
+                                 ParInit=c(0.5,0.5,0.2), loop.max = 10){
+  #   DESCRIPTION
+  # Fit a (semi)regional version of EGPD for chosen sites in a same cluster in Naveau et al. (2016).
+  #   ARGUMENTS
+  # M, matrix of positive precipitation 
   # Each row corresponds to a day, each col to a site
   # censor_thres, bounds to estimate parameters
   # sites, indices of GP/stations where local parameters are computed (e.g. medoid, min/max silhouette)
@@ -172,52 +268,56 @@ fitEGPDkSemiRegCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens
     M = as.matrix(M,ncol=1)}
   nday = nrow(M)
   nstat = ncol(M)
-  if(is.character(sites)){if(sites=="default"){sites = 1:nstat}else{stop("undefined option for choice of sites")} }
+  if(is.character(sites)){if(sites=="all"){sites = 1:nstat}else{stop("undefined option for choice of sites")} }
   nb_stat = length(sites)
-  
-  Sigma_names=Kappa_names=rep(NA,nstat)
+  #parameters for all sites
+  SigmaAll_names=KappaAll_names=rep(NA,nstat)
   CensoredMean = moyN  = rep(NA,nb_stat)
   #consider only days with data
   obs_rr = matrix(nrow=0,ncol=0)
-  # obs_norm = matrix(0,nrow = 0,ncol =0)
+  obs_norm = matrix(0,nrow = 0,ncol =0)
   Theta = list()
   Theta_init = list()
-  kappa_init = sigma_init = xisite_init= rep(NA,nstat)
+  kappaAll_init = sigmaAll_init = xisiteAll_init= rep(NA,nstat)
   for (station in 1:nstat){
-    Sigma_names[station] = paste("sigma",station,sep="_")
-    Kappa_names[station] = paste("kappa",station,sep="_")
+    SigmaAll_names[station] = paste("sigma",station,sep="_")
+    KappaAll_names[station] = paste("kappa",station,sep="_")
     
     y = M[,station]
     y = y[!is.na(y)]
     y = y[y>thres]-thres#consider only positive precipitation when thres =0
     moy = mean(y,na.rm=TRUE)
     obs_rr = rbind.fill.matrix(obs_rr,t(as.matrix(y)))#and fill the matrix with NA if needed
-    # obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
+    obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
   }#end loop on station for data formatting
   M = t(obs_rr)
-
+  
+  
+  
   Theta_list <- foreach(station=1:nstat) %dopar% {
     library(mev)
     y =na.omit(M[,station])
     fit_init = fit.extgp(y,model=1,method=method,init =ParInit, censoring = cens_thres, rounded = round,plots = FALSE)
-    kappa_init = fit_init$fit$pwm[1]
-    sigma_init = fit_init$fit$pwm[2]
-    xisite_init = fit_init$fit$pwm[3]
+    kappaAll_init = fit_init$fit$pwm[1]
+    sigmaAll_init = fit_init$fit$pwm[2]
+    xisiteAll_init = fit_init$fit$pwm[3]
     
-    return(c(kappa_init, sigma_init, xisite_init))
-  } #end foreach station 
+    return(c(kappaAll_init, sigmaAll_init, xisiteAll_init))
+  } #end foreach station for initialization
   
   Theta_mat0 <- matrix(unlist(Theta_list), ncol = length(Theta_list))
   
-  kappa_init <- Theta_mat0[1,]
-  sigma_init <- Theta_mat0[2,]
-  xisite_init <- Theta_mat0[3,]
+  kappaAll_init <- Theta_mat0[1,]
+  sigmaAll_init <- Theta_mat0[2,]
+  xisiteAll_init <- Theta_mat0[3,]
   
-  xi_init = mean(xisite_init)
-  Theta_init = list("kappa"=kappa_init[sites],"sigma"=sigma_init[sites],"xi.reg"=rep(xi_init,nb_stat))
+  
+  xi_init = mean(xisiteAll_init)
+  kappa_init = kappaAll_init[sites]; sigma_init = sigmaAll_init[sites]; xisite_init = xisiteAll_init[sites]
+  Theta_init = list("kappa"=kappa_init,"sigma"=sigma_init,"xi.reg"=rep(xi_init,nb_stat))
   
   Theta = Theta_init
-  Theta_0 = list("kappa"=kappa_init[sites],"sigma"=sigma_init[sites],"xi.site"=xisite_init[sites],"xi.reg"=rep(xi_init,nb_stat))
+  Theta_0 = list("kappa"=kappa_init,"sigma"=sigma_init,"xi.site"=xisite_init,"xi.reg"=rep(xi_init,nb_stat))
   loop <-0; increment <-precision +.1 
   log.init<-0
   Xi.old <- unique(Theta$xi.reg)
@@ -228,25 +328,18 @@ fitEGPDkSemiRegCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens
     Kappa.old <- Theta$kappa
     
     CensoredMean_list <- foreach(station=1:nb_stat) %dopar% {
-      y = na.omit(M[,station])
+      site = sites[station]; y = na.omit(M[,site])
       return(mean(y[y>u],na.rm=TRUE))
     } #end foreach station 
-    
-    CensoredMean <- unlist(CensoredMean_list)
+    CensoredMean <- unlist(CensoredMean_list) #at-site censored mean
     
     Sigma.new <- (Xi.old*CensoredMean)/(Kappa.old*IB(H(u,Sigma.old,Xi.old),
                                                      1,Kappa.old,1-Xi.old)/Fbar(u,Kappa.old,
                                                                                 Sigma.old,Xi.old)-1)
     Theta$sigma <- Sigma.new
-    
-    moyN_list <- foreach(station=1:nb_stat) %dopar% {
-      site = sites[i]
-      y = na.omit(M[,site])
-      return(mean(y[y/Sigma.new[station]>u/Sigma.new[station]]/Sigma.new[station],na.rm=TRUE))
-    } #end foreach station
-    
-    moyN <- unlist(moyN_list) # at site censored mean (data normalized by sigma.new)
-    
+    for (i in 1:nb_stat){
+      site = sites[i]; y = na.omit(M[,site])
+      moyN[i] = mean(y[y/Sigma.new[i]>u/Sigma.new[i]]/Sigma.new[i],na.rm=TRUE)}# at site censored mean (data normalized by sigma.new)
     
     Kappa.new = (Xi.old*moyN)/(1*IB(H(u,Sigma.new,Xi.old),
                                     1,Kappa.old,1-Xi.old)/Fbar(u,Kappa.old,
@@ -260,18 +353,16 @@ fitEGPDkSemiRegCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens
   
   
   return(list("Theta"=Theta,"Theta_0"=Theta_0))
-}# end function fitEGPDkSemiRegCensoredIter.boot_paral
+} #end function fitEGPDkSemiReg.boot_paral
 
 
-
-fitEGPDkREGCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens_thres=c(0,Inf),round=0.1,
-                                                   sites = "default", thres=0, precision=.0001,
-                                                   ParInit=c(0.5,0.5,0.2), loop.max = 20){
+fitEGPDkREG.boot_paral <- function(M, ncores,method="pwm",cens_thres=c(0,Inf),round=0.1,
+                             sites = "all", thres=0, precision=.0001,
+                             ParInit=c(0.5,0.5,0.2), loop.max = 10){
   #   DESCRIPTION
-  # Fit a regional version of EGPD in Naveau et al. (2016).
+  # Fit a regional version of EGPD for chosen sites in a same cluster in Naveau et al. (2016).
   #   ARGUMENTS
-  # M, matrix of positive precipitation (1 col = 1 station)
-  # ncores, number of cores to use in the parallelization
+  # M, matrix of positive precipitation 
   # Each row corresponds to a day, each col to a site
   # censor_thres, bounds to estimate parameters
   # sites, indices of GP/stations where local parameters are computed (e.g. medoid, min/max silhouette)
@@ -291,67 +382,68 @@ fitEGPDkREGCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens_thr
     M = as.matrix(M,ncol=1)}
   nday = nrow(M)
   nstat = ncol(M)
-  if(is.character(sites)){if(sites=="default"){sites = 1:nstat}else{stop("undefined option for choice of sites")} }
+  if(is.character(sites)){if(sites=="all"){sites = 1:nstat}else{stop("undefined option for choice of sites")} }
   nb_stat = length(sites)
-  
-  Sigma_names=Kappa_names=rep(NA,nstat)
+  #parameters for all sites
+  SigmaAll_names=KappaAll_names=rep(NA,nstat)
   CensoredMean = moyN  = rep(NA,nb_stat)
   #consider only days with data
   obs_rr = matrix(nrow=0,ncol=0)
-  # obs_norm = matrix(0,nrow = 0,ncol =0)
+  obs_norm = matrix(0,nrow = 0,ncol =0)
   Theta = list()
   Theta_init = list()
-  kappa_init = sigma_init = xisite_init= rep(NA,nstat)
+  kappaAll_init = sigmaAll_init = xisiteAll_init= rep(NA,nstat)
   for (station in 1:nstat){
-    Sigma_names[station] = paste("sigma",station,sep="_")
-    Kappa_names[station] = paste("kappa",station,sep="_")
+    SigmaAll_names[station] = paste("sigma",station,sep="_")
+    KappaAll_names[station] = paste("kappa",station,sep="_")
     
     y = M[,station]
     y = y[!is.na(y)]
     y = y[y>thres]-thres#consider only positive precipitation when thres =0
-    # moy = mean(y,na.rm=TRUE)
+    moy = mean(y,na.rm=TRUE)
     obs_rr = rbind.fill.matrix(obs_rr,t(as.matrix(y)))#and fill the matrix with NA if needed
-    # obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
+    obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
   }#end loop on station for data formatting
   M = t(obs_rr)
+  
   
   Theta_list <- foreach(station=1:nstat) %dopar% {
     library(mev)
     y =na.omit(M[,station])
     fit_init = fit.extgp(y,model=1,method=method,init =ParInit, censoring = cens_thres, rounded = round,plots = FALSE)
-    kappa_init = fit_init$fit$pwm[1]
-    sigma_init = fit_init$fit$pwm[2]
-    xisite_init = fit_init$fit$pwm[3]
+    kappaAll_init = fit_init$fit$pwm[1]
+    sigmaAll_init = fit_init$fit$pwm[2]
+    xisiteAll_init = fit_init$fit$pwm[3]
     
-    return(c(kappa_init, sigma_init, xisite_init))
-  } #end foreach station 
+    return(c(kappaAll_init, sigmaAll_init, xisiteAll_init))
+  } #end foreach station  for initialization
   
   Theta_mat0 <- matrix(unlist(Theta_list), ncol = length(Theta_list))
   
-  kappasite_init <- Theta_mat0[1,]
-  sigma_init <- Theta_mat0[2,]
-  xisite_init <- Theta_mat0[3,]
+  kappaAll_init <- Theta_mat0[1,]
+  sigmaAll_init <- Theta_mat0[2,]
+  xisiteAll_init <- Theta_mat0[3,]
   
-  kappa_init = mean(kappasite_init)#regional version of kappa
-  xi_init = mean(xisite_init)
-  Theta_init = list("kappa.reg"=rep(kappa_init,nb_stat),"sigma"=sigma_init[sites],"xi.reg"=rep(xi_init,nb_stat))
+  
+  xi_init = mean(xisiteAll_init); kappa_init = mean(kappaAll_init)
+  kappasite_init = kappaAll_init[sites]; sigma_init = sigmaAll_init[sites]; xisite_init = xisiteAll_init[sites]
+  Theta_init = list("kappa"=rep(kappa_init,nb_stat),"sigma"=sigma_init,"xi.reg"=rep(xi_init,nb_stat))
   
   Theta = Theta_init
-  Theta_0 = list("kappa"=kappa_init[sites],"sigma"=sigma_init[sites],"xi.site"=xisite_init[sites],
-                 "kappa.reg" = rep(kappa_init,nb_stat),"xi.reg"=rep(xi_init,nb_stat))
+  Theta_0 = list("kappa.site"=kappasite_init,"sigma"=sigma_init,"xi.site"=xisite_init)
   loop <-0; increment <-precision +.1 
   log.init<-0
   Xi.old <- unique(Theta$xi.reg)
-  Kappa.old = unique(Theta$kappa.reg)
+  Kappa.old <- unique(Theta$kappa)
   u = cens_thres[1]
   while((loop<loop.max)&(increment>precision)){
     loop <- loop+1
     Sigma.old <- Theta$sigma
-    
+    #compute sigmai only for sites of interest
     CensoredMean_list <- foreach(station=1:nb_stat) %dopar% {
-      y = na.omit(M[,station])
+      site = sites[station]; y = na.omit(M[,site])
       return(mean(y[y>u],na.rm=TRUE))
-    } #end foreach station 
+    } #end foreach station at-site censored mean 
     
     CensoredMean <- unlist(CensoredMean_list)
     
@@ -359,16 +451,15 @@ fitEGPDkREGCensoredIter.boot_paral <- function(M, ncores, method="pwm", cens_thr
                                                      1,Kappa.old,1-Xi.old)/Fbar(u,Kappa.old,
                                                                                 Sigma.old,Xi.old)-1)
     Theta$sigma <- Sigma.new
-
-    #update kappa and sigma in Theta
     
-    increment<-max(abs(Sigma.old-Theta$sigma),abs(Kappa.old-Theta$kappa))
+    
+    increment<-max(abs(Sigma.old-Theta$sigma))
     
   }#end while
   
   
   return(list("Theta"=Theta,"Theta_0"=Theta_0))
-}# end function fitEGPDkSemiRegCensoredIter.boot_paral
+}# end function fitEGPDkREG.boot_paral
 
 
 
