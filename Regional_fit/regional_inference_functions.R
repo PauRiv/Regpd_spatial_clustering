@@ -405,7 +405,114 @@ fitEGPDkREG.boot <- function(M,method="pwm",cens_thres=c(0,Inf),round=0.1,
 
 
 
+fitEGPDk.boot <- function(M,method="pwm",cens_thres=c(0,Inf),round=0.1,
+                             sites = "all", thres=0, precision=.0001,
+                             ParInit=c(0.5,0.5,0.2), loop.max = 10){
+  #   DESCRIPTION
+  # Fit local, semi-regional and regional versions of EGPD for chosen sites in a same cluster, see Naveau et al. (2016) and Le Gall et al. (2021)
+  #   ARGUMENTS
+  # M, matrix of positive precipitation for sites in a same homogeneous region 
+  # Each row corresponds to a day, each column to a site
+  # censor_thres, bounds to estimate parameters
+  # sites, indices of GP/stations where local parameters are computed (e.g. medoid, min/max silhouette)
+  # thres = threshold of wet days (e.g. 2mm) if not null, provides conditional parameters
+  
+  #   VALUE
+  # List of list of parameters (Theta_reg, Theta_semireg,Theta_0)
+  #   - the fist element of the first list is the regional flexibility parameter kappa, the second element is the vector of
+  #     semi-regional scale parameters sigma, the last element is the regional shape parameter xi.
+  #  - the fist element of the second list is the vector of semi-regional flexibility parameters kappa, the second element is the vector of
+  #     semi-regional scale parameters sigma, the last element is the regional shape parameter xi.
+  #   - the second element of the list contains initialization of parameters (i.e. at-site estimates)
+  ###############################################
+  #if only one temporal serie put in a matrix
+  
+  if(is.null(dim(M))){
+    M = as.matrix(M,ncol=1)}
+  nday = nrow(M)
+  nstat = ncol(M)
+  if(is.character(sites)){if(sites=="all"){sites = 1:nstat}else{stop("undefined option for choice of sites")} }
+  nb_stat = length(sites)
+  #parameters for all sites
+  SigmaAll_names=KappaAll_names=rep(NA,nstat)
+  CensoredMean = moyN  = rep(NA,nb_stat)
+  #consider only days with data
+  obs_rr = matrix(nrow=0,ncol=0)
+  obs_norm = matrix(0,nrow = 0,ncol =0)
+  ThetaR = ThetaSR = list()
+  Theta_init = list()
+  kappaAll_init = sigmaAll_init = xisiteAll_init= rep(NA,nstat)
+  for (station in 1:nstat){
+    SigmaAll_names[station] = paste("sigma",station,sep="_")
+    KappaAll_names[station] = paste("kappa",station,sep="_")
+    
+    y = M[,station]
+    y = y[!is.na(y)]
+    y = y[y>thres]-thres#consider only positive precipitation when thres =0
+    moy = mean(y,na.rm=TRUE)
+    obs_rr = rbind.fill.matrix(obs_rr,t(as.matrix(y)))#and fill the matrix with NA if needed
+    obs_norm = rbind.fill.matrix(obs_norm,t(as.matrix(y/moy)))#and fill the matrix with NA if needed
+  }#end loop on station for data formatting
+  M = t(obs_rr)
+  
+  for (station in 1:nstat) {
+    y = na.omit(M[,station])
+    fit_init = fit.extgp(y,model=1,method=method,init =ParInit, censoring = cens_thres, rounded = round,plots = FALSE)
+    kappaAll_init[station] = fit_init$fit$pwm[1]
+    sigmaAll_init[station] = fit_init$fit$pwm[2]
+    xisiteAll_init[station] = fit_init$fit$pwm[3]
+  }#end loop on station for initialization
+  xi_init = mean(xisiteAll_init); kappa_init = mean(kappaAll_init)
+  kappasite_init = kappaAll_init[sites]; sigma_init = sigmaAll_init[sites]; xisite_init = xisiteAll_init[sites]
+  Theta_init = list("kappa"=rep(kappa_init,nb_stat),"sigma"=sigma_init,"xi.reg"=rep(xi_init,nb_stat))
+  
+  ThetaR = ThetaSR = Theta_init
+  Theta_0 = list("kappa.site"=kappasite_init,"sigma"=sigma_init,"xi.site"=xisite_init)
+  loop <-0; increment <-precision +.1 
+  log.init<-0
+  XiR.old <- unique(ThetaR$xi.reg); XiSR.old <- unique(ThetaSR$xi.reg)
 
+  KappaR.old <- unique(ThetaR$kappa)
+  u = cens_thres[1]
+  for (i in 1:nb_stat){
+    site = sites[i]; y = na.omit(M[,site])
+    CensoredMean[i] <- mean(y[y>u],na.rm=TRUE)
+  }#at-site censored mean 
+  #loop for regional fit
+  while((loop<loop.max)&(increment>precision)){
+    loop <- loop+1
+    SigmaR.old <- ThetaR$sigma
+    #compute sigmai only for sites of interest
+    SigmaR.new <- (XiR.old*CensoredMean)/(KappaR.old*IB(H(u,SigmaR.old,XiR.old),
+                                                     1,KappaR.old,1-XiR.old)/Fbar(u,KappaR.old,
+                                                                                SigmaR.old,XiR.old)-1)
+    ThetaR$sigma <- SigmaR.new
+    ######################
+    SigmaSR.old <- ThetaSR$sigma
+    KappaSR.old <- ThetaSR$kappa
+    SigmaSR.new <- (XiSR.old*CensoredMean)/(KappaSR.old*IB(H(u,SigmaSR.old,XiSR.old),
+                                                           1,KappaSR.old,1-XiSR.old)/Fbar(u,KappaSR.old,
+                                                                                          SigmaSR.old,XiSR.old)-1)
+    ThetaSR$sigma <- SigmaSR.new
+    for (i in 1:nb_stat){
+      site = sites[i]; y = na.omit(M[,site])
+      moyN[i] = mean(y[y/SigmaSR.new[i]>u/SigmaSR.new[i]]/SigmaSR.new[i],na.rm=TRUE)}# at site censored mean (data normalized by sigma.new)
+    
+    KappaSR.new = (XiSR.old*moyN)/(1*IB(H(u,SigmaSR.new,XiSR.old),
+                                        1,KappaSR.old,1-XiSR.old)/Fbar(u,KappaSR.old,
+                                                                       SigmaSR.new,XiSR.old)-1/KappaSR.old)
+    ThetaSR$kappa = KappaSR.new
+    
+    
+    #####################
+    increment<-max(abs(SigmaR.old-ThetaR$sigma),abs(SigmaSR.old-ThetaSR$sigma),abs(KappaSR.old-ThetaSR$kappa))
+    
+  }#end while
+
+ 
+  
+  return(list("Theta_reg"=ThetaR,"Theta_semireg" = ThetaSR,"Theta_0"=Theta_0))
+}
 
 
 
